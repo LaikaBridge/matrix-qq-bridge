@@ -1,0 +1,19 @@
+# Mirai configuration
+mirai:
+    host: http://127.0.0.1:8001/
+    verifyKey: secret_key
+    qq: 10000
+# Matrix configuration
+matrix:
+    homeserver: http://127.0.0.1:8002/
+    domain: matrix.example.com
+    listenIP: 0.0.0.0
+    listenPort: 9000
+# Bridged groups configuration
+bridgedGroups:
+    - mx: "!someroom:matrix.gjz010.com"
+      qq: 10001
+# Proxy configuration
+socksProxy:
+    enable: false
+    url: socks://127.0.0.1:8003
