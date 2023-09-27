@@ -285,6 +285,15 @@ new Cli({
                             console.log(err)
                         }
                         //const url = intent.down
+                    }else if(event.type=="m.room.redaction"){
+                        try{
+                            const ev = await getMatrix2QQMsgMapping(event.redacts as string);
+                            if(!ev) return;
+                            console.log(ev)
+                            await bot.recall(Number(ev[1]), Number(ev[0]));
+                        }catch(err){
+                            console.log(err);
+                        }
                     }
                     
                 }
@@ -344,6 +353,18 @@ new Cli({
 
             }
         }
+        bot.onEvent("groupRecall", async message=>{
+            const group_id = message.group.id;
+            const room_id = findMxByQQ(group_id);
+            if(room_id===null) return;
+            const user_id = message.authorId;
+            const matrix_id = await getQQ2MatrixMsgMapping([String(message.group.id), String(message.messageId)]);
+            if(matrix_id!==null){
+                const key = `@gjz010_qqbot_qq_${user_id}:matrix.gjz010.com`;
+                const intent = bridge.getIntent(key);
+                intent.matrixClient.redactEvent(room_id, matrix_id, "撤回了一条消息")
+            }
+        })
         // 接受消息,发送消息(*)
         bot.onMessage(async message => {
             const { type, sender, messageChain, reply, quoteReply } = message;
