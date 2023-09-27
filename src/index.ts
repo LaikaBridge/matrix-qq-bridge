@@ -1,4 +1,4 @@
-import Mirai from 'node-mirai-sdk';
+import Mirai, { GroupTarget } from 'node-mirai-sdk';
 import {Cli, Bridge, AppServiceRegistration, MembershipCache, Intent, UserMembership, PowerLevelContent} from "matrix-appservice-bridge"
 import {marked} from "marked"
 import fetch from "node-fetch"
@@ -9,7 +9,7 @@ import {readConfig} from "./config"
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { MatrixProfileInfo } from 'matrix-bot-sdk';
 import throttledQueue from 'throttled-queue';
-const { Plain, At } = Mirai.MessageComponent;
+const { Plain, At, Image } = Mirai.MessageComponent;
 const config = readConfig();
 const localStorage = new LocalStorage('./extra-storage.db');
 
@@ -217,15 +217,18 @@ new Cli({
                     }else{
                         name = profile.displayname ?? name;
                     }
-                    
-                    if(event.type=="m.room.message" && event.content.msgtype=="m.text" && event.room_id==room_id){
-                        //let quote = null;
+                    async function parseQuote(){
                         const l1: any = event.content["m.relates_to"];
                         const l2: any = l1?l1["m.in_reply_to"]:undefined;
                         const l3: string | undefined = l2?.event_id;
                         const l4 = l3===undefined?l3:await getMatrix2QQMsgMapping(l3);
+                        return l4 ?? null;
+                    }
+                    if(event.type=="m.room.message" && event.content.msgtype=="m.text"){
+                        //let quote = null;
+                        const l4 = await parseQuote();
                         let msg;
-                        if(l4!==undefined && l4!==null){
+                        if(l4!==null){
                             const s = event.content.body as string;
                             let lines = s.split("\n");
                             if(lines[0].startsWith("> ") && lines[1]==""){
@@ -244,6 +247,44 @@ new Cli({
                         await addMatrix2QQMsgMapping(event_id, source);
                         await addQQ2MatrixMsgMapping(source, event_id);
                         
+                    }else if(event.type=="m.room.message" && event.content.msgtype=="m.image"){
+                        try{
+                            const url = intent.matrixClient.mxcToHttp(event.content.url as string);
+                            const req = await fetch(url);
+                            const buffer = await req.arrayBuffer();
+                            let msg;
+                            const l4 = await parseQuote();
+                            const target: GroupTarget = {
+                                type: 'GroupMessage',
+                                sender: {
+                                    group: {
+                                        id: qq_id
+                                    }
+                                }
+                            };
+                            if(l4){
+                                msg=await throttle(async ()=>{
+                                    const image = await bot.uploadImage(Buffer.from(buffer), target);
+                                    return await bot.sendQuotedGroupMessage([Plain(`${name}:`), Image(image)], qq_id, Number(l4[1]))
+                                });
+                                
+                            }else{
+                                msg=await throttle(async ()=>{
+                                    const image = await bot.uploadImage(Buffer.from(buffer), target);
+                                    return await bot.sendGroupMessage([Plain(`${name}:`), Image(image)], qq_id);
+                                });
+                                
+                            }
+                            
+                            
+                            const source: [string, string] = [String(qq_id), String(msg.messageId)];
+                            const event_id = event.event_id;
+                            await addMatrix2QQMsgMapping(event_id, source);
+                            await addQQ2MatrixMsgMapping(source, event_id);
+                        }catch(err){
+                            console.log(err)
+                        }
+                        //const url = intent.down
                     }
                     
                 }
@@ -393,7 +434,7 @@ new Cli({
                             const {event_id} = await intent.sendMessage(mx_id, {
                                 msgtype: "m.image",
                                 url: content,
-                                body: `${g.memberName}`,
+                                body: `QQ图片`,
                                 info: {
                                     mimetype: "image/png"
                                 }
