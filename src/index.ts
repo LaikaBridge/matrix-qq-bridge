@@ -154,14 +154,17 @@ const INTENT_MEMBERSHIP_STORE=(function(){
 })();
 console.log(INTENT_MEMBERSHIP_STORE.getMembership);
 const launch_date = new Date();
+const matrixAdminId = `@${config.matrix.namePrefix}_admin:${config.matrix.domain}`;
+const matrixPuppetId = (id: string | number) => `@${config.matrix.namePrefix}_qq_${id}:${config.matrix.domain}`;
 new Cli({
-    registrationPath: "gjz010-qqbridge-registration.yaml",
+    registrationPath: config.matrix.registration.path,
     generateRegistration: function(reg, callback) {
+        const regConfig = config.matrix.registration;
         reg.setId(AppServiceRegistration.generateToken());
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
         reg.setAppServiceToken(AppServiceRegistration.generateToken());
-        reg.setSenderLocalpart("gjz010-qqbridge");
-        reg.addRegexPattern("users", "@gjz010_qqbot_.*", true);
+        reg.setSenderLocalpart(regConfig.localpart);
+        reg.addRegexPattern("users", `@${config.matrix.namePrefix}_.*`, true);
         callback(reg);
     },
     run: function(port, config_) {
@@ -171,7 +174,7 @@ new Cli({
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
-            registration: "gjz010-qqbridge-registration.yaml",
+            registration: config.matrix.registration.path,
             membershipCache: cache,
             intentOptions:{
                 bot: {
@@ -199,7 +202,7 @@ new Cli({
                     if(qq_id===null) return;
                     let user_id = event.sender;
                     let name = user_id;
-                    const intent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+                    const intent = bridge.getIntent(matrixAdminId);
                     if(prev_profile_dict[user_id]===undefined){
                         const prof = await intent.getProfileInfo(user_id, null, true);
                         //console.log(prof);
@@ -237,7 +240,7 @@ new Cli({
                             if (node instanceof HTMLElement) {
                                 if (node.tagName == "A" && node.attributes?.href?.startsWith("https://matrix.to/#/@")) {
                                     let user_id = node.attributes.href.slice("https://matrix.to/#/".length);
-                                    let match = user_id.match(/@gjz010_qqbot_qq_(\d+):matrix.gjz010.com/);
+                                    let match = user_id.match(new RegExp(matrixPuppetId('(\\d+)')));
                                     if (match != null) {
                                         let qq: number = parseInt(match[1]);
                                         chain.push(At(qq));
@@ -389,7 +392,7 @@ new Cli({
         }
         async function joinRoom(bot: string, room_id: string){
             try{
-                const superintent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+                const superintent = bridge.getIntent(matrixAdminId);
 
                 try{
                     await superintent
@@ -413,7 +416,7 @@ new Cli({
             const user_id = message.authorId;
             const matrix_id = await getQQ2MatrixMsgMapping([String(message.group.id), String(message.messageId)]);
             if(matrix_id!==null){
-                const key = `@gjz010_qqbot_qq_${user_id}:matrix.gjz010.com`;
+                const key = matrixPuppetId(user_id);
                 const intent = bridge.getIntent(key);
                 intent.matrixClient.redactEvent(room_id, matrix_id, "撤回了一条消息")
             }
@@ -437,7 +440,7 @@ new Cli({
                         quoted=String(chain.id!);
                     }
                 }
-                const superintent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+                const superintent = bridge.getIntent(matrixAdminId);
                 for(const chain of messageChain) {
                     if (chain.type === 'Plain'){
                         msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
@@ -451,19 +454,19 @@ new Cli({
                                     const sender = await superintent.getEvent(mx_id, quoted_mx_msg, true);
                                     if(sender){
                                         const sender_id: string = sender.sender;
-                                        msg += "小火龙";
-                                        formatted += `<a href="https://matrix.to/#/${sender_id}">小火龙</a>`;
+                                        msg += config.puppetCustomization.adminName;
+                                        formatted += `<a href="https://matrix.to/#/${sender_id}">${config.puppetCustomization.adminName}</a>`;
                                         continue;
                                     }
                                 }
                             }
                             
-                            msg += "小火龙";
-                            formatted += `<a href="https://matrix.to/#/@gjz010_qqbot_admin:matrix.gjz010.com">小火龙</a>`;
+                            msg += config.puppetCustomization.adminName;
+                            formatted += `<a href="https://matrix.to/#/${matrixAdminId}">${config.puppetCustomization.adminName}</a>`;
                         } else {
-                            let id = `gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com`;
+                            let id = matrixPuppetId(chain.target!)
                             msg += id;
-                            formatted += `<a href="https://matrix.to/#/@${id}">${id}</a>`;
+                            formatted += `<a href="https://matrix.to/#/${id}">${id.substring(1)}</a>`;
                         }
                     } else if(chain.type=="Source"){
                         source= String(chain.id!);
@@ -476,7 +479,7 @@ new Cli({
             
 
                 console.log(message.sender)
-                const key = `@gjz010_qqbot_qq_${g.id}:matrix.gjz010.com`;
+                const key = matrixPuppetId(g.id);
                 const intent = bridge.getIntent(key);
                 await joinRoom(key, mx_id);
                 const group_profile = await bot.getGroupMemberProfile(g.group.id, g.id);
@@ -563,7 +566,7 @@ new Cli({
 
         console.log("Matrix-side listening on %s:%s", config.matrix.listenIP, config.matrix.listenPort);
         bridge.run(config.matrix.listenPort, undefined, config.matrix.listenIP).then(async ()=>{
-            const intent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+            const intent = bridge.getIntent(matrixAdminId);
             const customizationVersion = config.puppetCustomization.customizationVersion;
             if(Number(localStorage.getItem("CUSTOMIZATION_VERSION")??"0")<customizationVersion){
                 await intent.setDisplayName(config.puppetCustomization.adminName);
