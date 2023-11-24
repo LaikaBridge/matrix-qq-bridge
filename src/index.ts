@@ -443,7 +443,7 @@ new Cli({
                         msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
                         formatted += Plain.value(chain);
                     } else if (chain.type === 'At'){
-                        if (chain.target! == 3533630837) {
+                        if (chain.target! == config.mirai.qq) {
                             // try to find quoted.
                             if(quoted){
                                 const quoted_mx_msg = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
