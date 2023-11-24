@@ -1,4 +1,4 @@
-import Mirai, { GroupTarget } from 'node-mirai-sdk';
+import Mirai, { GroupTarget, MessageChain } from 'node-mirai-sdk';
 import {Cli, Bridge, AppServiceRegistration, MembershipCache, Intent, UserMembership, PowerLevelContent} from "matrix-appservice-bridge"
 import {marked, use} from "marked"
 import fetch from "node-fetch"
@@ -9,6 +9,7 @@ import {readConfig} from "./config"
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { MatrixProfileInfo } from 'matrix-bot-sdk';
 import throttledQueue from 'throttled-queue';
+import { TextNode, HTMLElement, Node, parse } from 'node-html-parser';
 const { Plain, At, Image } = Mirai.MessageComponent;
 const config = readConfig();
 const localStorage = new LocalStorage('./extra-storage.db');
@@ -226,23 +227,67 @@ new Cli({
                         const l4 = l3===undefined?l3:await getMatrix2QQMsgMapping(l3);
                         return l4 ?? null;
                     }
+                    async function htmlToMsgChain(s: string): Promise<MessageChain[]> {
+                        const html = parse(s);
+                        let chain: MessageChain[] = [];
+                        if (html.firstChild instanceof HTMLElement && html.firstChild?.tagName == "MX-REPLY") {
+                            html.firstChild.remove();
+                        }
+                        async function onNode(node: Node) {
+                            if (node instanceof HTMLElement) {
+                                if (node.tagName == "A" && node.attributes?.href.startsWith("https://matrix.to/#/@")) {
+                                    let user_id = node.attributes.href.slice("https://matrix.to/#/".length);
+                                    let match = user_id.match(/@gjz010_qqbot_(\d+):matrix.gjz010.com/);
+                                    if (match != null) {
+                                        let qq: number = parseInt(match[1]);
+                                        chain.push(At(qq));
+                                    } else {
+                                        chain.push(Plain("@" + node.text));
+                                    }
+                                } else {
+                                    for (let child of node.childNodes) {
+                                        onNode(child);
+                                    }
+                                }
+                            } else if (node instanceof TextNode) {
+                                chain.push(Plain(node.text));
+                            }
+                        }
+                        onNode(html);
+                        return chain;
+                    }
                     if(event.type=="m.room.message" && event.content.msgtype=="m.text"){
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
                         if(l4!==null){
-                            const s = event.content.body as string;
-                            let lines = s.split("\n");
-                            if(lines[0].startsWith("> ") && lines[1]==""){
-                                lines = lines.splice(2);
+                            if (event.content.format == "org.matrix.custom.html") {
+                                const s = event.content.formatted_body as string;
+                                msg=await throttle(async ()=>{
+                                    return await bot.sendQuotedGroupMessage(await htmlToMsgChain(s), qq_id, Number(l4[1]));
+                                });
+                            } else {
+                                const s = event.content.body as string;
+                                let lines = s.split("\n");
+                                if(lines[0].startsWith("> ") && lines[1]==""){
+                                    lines = lines.splice(2);
+                                }
+                                msg=await throttle(async ()=>{
+                                    return await bot.sendQuotedGroupMessage(`${name}: ${lines.join("\n")}` as any, qq_id, Number(l4[1]));
+                                });
                             }
-                            msg=await throttle(async ()=>{
-                                return await bot.sendQuotedGroupMessage(`${name}: ${lines.join("\n")}` as any, qq_id, Number(l4[1]));
-                            });
+                            
                         }else{
-                            msg=await throttle(async ()=>{
-                                return await bot.sendGroupMessage(`${name}: ${event.content.body}`, qq_id);
-                            });
+                            if (event.content.format == "org.matrix.custom.html") {
+                                const s = event.content.formatted_body as string;
+                                msg=await throttle(async ()=>{
+                                    return await bot.sendGroupMessage(await htmlToMsgChain(s), qq_id);
+                                });
+                            } else {
+                                msg=await throttle(async ()=>{
+                                    return await bot.sendGroupMessage(`${name}: ${event.content.body}`, qq_id);
+                                });
+                            }
                         }
                         const source: [string, string] = [String(qq_id), String(msg.messageId)];
                         const event_id = event.event_id;

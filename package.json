@@ -17,6 +17,7 @@
     "matrix-appservice-bridge": "^9.0.1",
     "matrix-bot-sdk": "^0.6.6",
     "node-fetch": "^3.3.2",
+    "node-html-parser": "^6.1.11",
     "node-localstorage": "^3.0.5",
     "node-mirai-sdk": "^0.3.6",
     "request": "^2.88.2",
