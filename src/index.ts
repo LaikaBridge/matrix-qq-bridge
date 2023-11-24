@@ -455,8 +455,8 @@ new Cli({
                     const a = `${group_profile.nickname} (QQ)`;
                     const b = await getAvatarUrl(g.id, intent) ?? undefined;
                     if(user_profile.displayname!==a){
-                        console.log("Reset displayname globally.");
-                        await intent.setDisplayName(a);
+                        console.log("Reset displayname globally: ignored.");
+                        //await intent.setDisplayName(a);
                     }
                     if(user_profile.avatar_url!==b){
                         if(b!==undefined) await intent.setAvatarUrl(b);
