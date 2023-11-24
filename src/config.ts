@@ -5,11 +5,17 @@ interface MiraiConfig{
     verifyKey: string
     qq: number
 }
+interface MatrixRegistration{
+    path: string
+    localpart: string
+}
 interface MatrixConfig{
     homeserver: string
     domain: string
     listenIP: string
     listenPort: number
+    registration: MatrixRegistration
+    namePrefix: string
 }
 
 interface PuppetCustomization{
