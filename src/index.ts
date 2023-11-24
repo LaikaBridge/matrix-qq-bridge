@@ -1,6 +1,6 @@
 import Mirai, { GroupTarget } from 'node-mirai-sdk';
 import {Cli, Bridge, AppServiceRegistration, MembershipCache, Intent, UserMembership, PowerLevelContent} from "matrix-appservice-bridge"
-import {marked} from "marked"
+import {marked, use} from "marked"
 import fetch from "node-fetch"
 import { LocalStorage } from "node-localstorage";
 import http from 'node:http';
@@ -166,8 +166,8 @@ new Cli({
     },
     run: function(port, config_) {
         const cache = new MembershipCache();
-        const prev_name_dict: Record<string, string> = {};
-        const prev_profile_dict : Record<string, string> = {};
+        const prev_name_dict : Record<string, Record<string, string>> = {}; // RoomId -> UserId -> RoomNick
+        const prev_profile_dict: Record<string, string> = {}; // UserId -> UserNick
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
@@ -205,18 +205,20 @@ new Cli({
                         //console.log(prof);
                         prev_profile_dict[user_id] = prof.displayname ?? name;
                     }
-                    name = prev_name_dict[user_id] ?? name;
+                    const room_prev_name_dict = prev_name_dict[event.room_id];
+                    name = room_prev_name_dict[user_id] ?? name;
                     const profile = cache.getMemberProfile(event.room_id, event.sender);
                     if(profile.displayname===undefined){
-                        if(prev_name_dict[user_id]===undefined){
+                        if(room_prev_name_dict[user_id]===undefined){
                             const state = await intent.getStateEvent(room_id, "m.room.member", user_id, true);
                             //console.log(state)
-                            prev_name_dict[user_id] = state?.displayname ?? name;
+                            room_prev_name_dict[user_id] = state?.displayname ?? name;
                         }
-                        name = prev_name_dict[user_id] ?? name;
+                        name = room_prev_name_dict[user_id] ?? name;
                     }else{
                         name = profile.displayname ?? name;
                     }
+                    name = name || user_id;
                     async function parseQuote(){
                         const l1: any = event.content["m.relates_to"];
                         const l2: any = l1?l1["m.in_reply_to"]:undefined;
@@ -377,6 +379,9 @@ new Cli({
                 if (chain.type === 'Plain'){
                     msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
                 }
+                if (chain.type === 'At'){
+                    msg += `@gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com `;
+                }
                 if(chain.type=="Source"){
                     source= String(chain.id!);
                 }
@@ -424,15 +429,14 @@ new Cli({
                     console.log("Member after", member2);
                     console.log("uploaded")
                     const md = `${msg}`;
-                    if(md){
-                        const html = marked(md).trim()
+                    if(msg){
+                        // const html = marked(md).trim()
                         let data: any = {
-                            body: md,
-                            format: 'org.matrix.custom.html',
-                            formatted_body: html,
+                            body: msg,
+                            // format: 'org.matrix.custom.html',
+                            // formatted_body: html,
                             msgtype: "m.text"
                         };
-                        let q = quoted;
                         if(quoted!==null){
                             const orig_mat = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
                             if(orig_mat!==null){
