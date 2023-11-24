@@ -230,7 +230,7 @@ new Cli({
                     }
                     async function htmlToMsgChain(s: string): Promise<MessageChain[]> {
                         const html = parse(s);
-                        let chain: MessageChain[] = [];
+                        let chain: MessageChain[] = [Plain(`${name}: `)];
                         if (html.firstChild instanceof HTMLElement && html.firstChild?.tagName == "MX-REPLY") {
                             html.firstChild.remove();
                         }
@@ -238,7 +238,7 @@ new Cli({
                             if (node instanceof HTMLElement) {
                                 if (node.tagName == "A" && node.attributes?.href?.startsWith("https://matrix.to/#/@")) {
                                     let user_id = node.attributes.href.slice("https://matrix.to/#/".length);
-                                    let match = user_id.match(/@gjz010_qqbot_(\d+):matrix.gjz010.com/);
+                                    let match = user_id.match(/@gjz010_qqbot_qq_(\d+):matrix.gjz010.com/);
                                     if (match != null) {
                                         let qq: number = parseInt(match[1]);
                                         chain.push(At(qq));
