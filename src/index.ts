@@ -424,15 +424,14 @@ new Cli({
                     console.log("Member after", member2);
                     console.log("uploaded")
                     const md = `${msg}`;
-                    if(md){
-                        const html = marked(md).trim()
+                    if(msg){
+                        // const html = marked(md).trim()
                         let data: any = {
-                            body: md,
-                            format: 'org.matrix.custom.html',
-                            formatted_body: html,
+                            body: msg,
+                            // format: 'org.matrix.custom.html',
+                            // formatted_body: html,
                             msgtype: "m.text"
                         };
-                        let q = quoted;
                         if(quoted!==null){
                             const orig_mat = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
                             if(orig_mat!==null){
