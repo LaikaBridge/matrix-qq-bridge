@@ -206,6 +206,7 @@ new Cli({
                         //console.log(prof);
                         prev_profile_dict[user_id] = prof.displayname ?? name;
                     }
+                    if(!prev_name_dict[event.room_id]) prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
                     name = room_prev_name_dict[user_id] ?? name;
                     const profile = cache.getMemberProfile(event.room_id, event.sender);
