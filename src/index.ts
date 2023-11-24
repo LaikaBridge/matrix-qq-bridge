@@ -236,7 +236,7 @@ new Cli({
                         }
                         async function onNode(node: Node) {
                             if (node instanceof HTMLElement) {
-                                if (node.tagName == "A" && node.attributes?.href.startsWith("https://matrix.to/#/@")) {
+                                if (node.tagName == "A" && node.attributes?.href?.startsWith("https://matrix.to/#/@")) {
                                     let user_id = node.attributes.href.slice("https://matrix.to/#/".length);
                                     let match = user_id.match(/@gjz010_qqbot_(\d+):matrix.gjz010.com/);
                                     if (match != null) {
