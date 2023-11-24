@@ -1,6 +1,5 @@
 import Mirai, { GroupTarget, MessageChain } from 'node-mirai-sdk';
 import {Cli, Bridge, AppServiceRegistration, MembershipCache, Intent, UserMembership, PowerLevelContent} from "matrix-appservice-bridge"
-import {marked, use} from "marked"
 import fetch from "node-fetch"
 import { LocalStorage } from "node-localstorage";
 import http from 'node:http';
@@ -417,6 +416,7 @@ new Cli({
         bot.onMessage(async message => {
             const { type, sender, messageChain, reply, quoteReply } = message;
             let msg = '';
+            let formatted = '';
             let images: string[]=[];
             console.log(messageChain)
             let quoted : string | null = null
@@ -424,17 +424,21 @@ new Cli({
             for(const chain of messageChain) {
                 if (chain.type === 'Plain'){
                     msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
-                }
-                if (chain.type === 'At'){
-                    msg += `@gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com `;
-                }
-                if(chain.type=="Source"){
+                    formatted += Plain.value(chain);
+                } else if (chain.type === 'At'){
+                    if (chain.target! == 3533630837) {
+                        msg += "小火龙";
+                        formatted += `<a href="https://matrix.to/#/@gjz010_qqbot_admin:matrix.gjz010.com">小火龙</a>`;
+                    } else {
+                        let id = `gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com`;
+                        msg += id;
+                        formatted += `<a href="https://matrix.to/#/@${id}">${id}</a>`;
+                    }
+                } else if(chain.type=="Source"){
                     source= String(chain.id!);
-                }
-                if(chain.type=="Quote"){
+                } else if(chain.type=="Quote"){
                     quoted=String(chain.id!);
-                }
-                if(chain.type=='Image'){
+                } else if(chain.type=='Image'){
                     console.log(chain);
                     images.push(chain.url!);
                     //msg+='[图图]';  
@@ -474,13 +478,11 @@ new Cli({
                     const member2 = await intent.getStateEvent(mx_id, "m.room.member", key, true);
                     console.log("Member after", member2);
                     console.log("uploaded")
-                    const md = `${msg}`;
                     if(msg){
-                        // const html = marked(md).trim()
                         let data: any = {
                             body: msg,
-                            // format: 'org.matrix.custom.html',
-                            // formatted_body: html,
+                            format: 'org.matrix.custom.html',
+                            formatted_body: formatted,
                             msgtype: "m.text"
                         };
                         if(quoted!==null){
