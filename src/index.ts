@@ -426,7 +426,7 @@ new Cli({
                     msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
                     formatted += Plain.value(chain);
                 } else if (chain.type === 'At'){
-                    if (chain.target! == 3533630837) {
+                    if (chain.target! == config.mirai.qq) {
                         msg += "小火龙";
                         formatted += `<a href="https://matrix.to/#/@gjz010_qqbot_admin:matrix.gjz010.com">小火龙</a>`;
                     } else {
