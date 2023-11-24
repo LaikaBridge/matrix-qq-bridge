@@ -217,6 +217,7 @@ new Cli({
                     }else{
                         name = profile.displayname ?? name;
                     }
+                    name = name || user_id;
                     async function parseQuote(){
                         const l1: any = event.content["m.relates_to"];
                         const l2: any = l1?l1["m.in_reply_to"]:undefined;
