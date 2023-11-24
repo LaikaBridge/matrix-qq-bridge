@@ -11,6 +11,12 @@ interface MatrixConfig{
     listenIP: string
     listenPort: number
 }
+
+interface PuppetCustomization{
+    adminName: string
+    adminAvatar: string
+    customizationVersion: number
+}
 interface GroupBridgeRule{
     mx: string
     qq: number
@@ -24,6 +30,7 @@ interface Config{
     matrix: MatrixConfig
     bridgedGroups: GroupBridgeRule[]
     socksProxy: SocksProxyConfig
+    puppetCustomization: PuppetCustomization
 }
 
 export function readConfig(): Config{

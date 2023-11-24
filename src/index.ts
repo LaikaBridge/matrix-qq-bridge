@@ -12,7 +12,7 @@ import { TextNode, HTMLElement, Node, parse } from 'node-html-parser';
 const { Plain, At, Image } = Mirai.MessageComponent;
 const config = readConfig();
 const localStorage = new LocalStorage('./extra-storage.db');
-
+const BOT_UPDATE_VERSION = 1;
 let agent: SocksProxyAgent | any | undefined = undefined;
 if(config.socksProxy.enable){
     agent = new SocksProxyAgent(config.socksProxy.url)
@@ -390,6 +390,12 @@ new Cli({
         async function joinRoom(bot: string, room_id: string){
             try{
                 const superintent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+
+                try{
+                    await superintent
+                }catch(err){
+
+                }
                 try{
                     await superintent.join(room_id);
                 }catch(err){
@@ -536,6 +542,14 @@ new Cli({
         bot.listen('group'); // 相当于 bot.listen('friend', 'group', 'temp')
 
         console.log("Matrix-side listening on %s:%s", config.matrix.listenIP, config.matrix.listenPort);
-        bridge.run(config.matrix.listenPort, undefined, config.matrix.listenIP);
+        bridge.run(config.matrix.listenPort, undefined, config.matrix.listenIP).then(async ()=>{
+            const intent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+            const customizationVersion = config.puppetCustomization.customizationVersion;
+            if(Number(localStorage.getItem("CUSTOMIZATION_VERSION")??"0")<customizationVersion){
+                await intent.setDisplayName(config.puppetCustomization.adminName);
+                await intent.setAvatarUrl(config.puppetCustomization.adminAvatar);
+                localStorage.setItem("CUSTOMIZATION_VERSION", String(customizationVersion));
+            }
+        });
     }
 }).run();
