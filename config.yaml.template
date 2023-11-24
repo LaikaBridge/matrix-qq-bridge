@@ -9,6 +9,10 @@ matrix:
     domain: matrix.example.com
     listenIP: 0.0.0.0
     listenPort: 9000
+    registration:
+        path: gjz010-qqbridge-registration.yaml
+        localpart: gjz010-qqbridge
+    namePrefix: gjz010_qqbot
 # Bridged groups configuration
 bridgedGroups:
     - mx: "!someroom:matrix.gjz010.com"
@@ -17,3 +21,7 @@ bridgedGroups:
 socksProxy:
     enable: false
     url: socks://127.0.0.1:8003
+puppetCustomization:
+    customizationVersion: 1
+    adminName: 小火龙
+    adminAvatar: mxc://mozilla.org/4a6de5a3ca9bb4f4c1d2f7a4478f635643e982361728112230710378496
