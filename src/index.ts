@@ -420,113 +420,133 @@ new Cli({
         })
         // 接受消息,发送消息(*)
         bot.onMessage(async message => {
-            const { type, sender, messageChain, reply, quoteReply } = message;
-            let msg = '';
-            let formatted = '';
-            let images: string[]=[];
-            console.log(messageChain)
-            let quoted : string | null = null
-            let source : string | null = null
-            for(const chain of messageChain) {
-                if (chain.type === 'Plain'){
-                    msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
-                    formatted += Plain.value(chain);
-                } else if (chain.type === 'At'){
-                    if (chain.target! == config.mirai.qq) {
-                        msg += "小火龙";
-                        formatted += `<a href="https://matrix.to/#/@gjz010_qqbot_admin:matrix.gjz010.com">小火龙</a>`;
-                    } else {
-                        let id = `gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com`;
-                        msg += id;
-                        formatted += `<a href="https://matrix.to/#/@${id}">${id}</a>`;
-                    }
-                } else if(chain.type=="Source"){
-                    source= String(chain.id!);
-                } else if(chain.type=="Quote"){
-                    quoted=String(chain.id!);
-                } else if(chain.type=='Image'){
-                    console.log(chain);
-                    images.push(chain.url!);
-                    //msg+='[图图]';  
-                }
-            }
             if(message.type == "GroupMessage"){
                 const g = message.sender as GroupSender
                 const group_id = g.group.id;
                 const mx_id = findMxByQQ(group_id);
-                if(mx_id!==null){
-                    console.log(message.sender)
-                    const key = `@gjz010_qqbot_qq_${g.id}:matrix.gjz010.com`;
-                    const intent = bridge.getIntent(key);
-                    await joinRoom(key, mx_id);
-                    const group_profile = await bot.getGroupMemberProfile(g.group.id, g.id);
-                    const user_profile = await intent.getProfileInfo(key, undefined, false);
-                    console.log("User", user_profile);
-                    console.log("Group", group_profile);
-                    const a = `${group_profile.nickname} (QQ)`;
-                    const b = await getAvatarUrl(g.id, intent) ?? undefined;
-                    if(user_profile.displayname!==a){
-                        console.log("Reset displayname globally: ignored.");
-                        //await intent.setDisplayName(a);
+                if(mx_id===null) return;
+                const { type, sender, messageChain, reply, quoteReply } = message;
+                let msg = '';
+                let formatted = '';
+                let images: string[]=[];
+                console.log(messageChain)
+                let quoted : string | null = null
+                let source : string | null = null
+                for(const chain of messageChain) {
+                    if(chain.type=="Quote"){
+                        quoted=String(chain.id!);
                     }
-                    if(user_profile.avatar_url!==b){
-                        if(b!==undefined) await intent.setAvatarUrl(b);
-                    }
-                    console.log("DEBUG", (intent as any).opts)
-                    const member = await intent.getStateEvent(mx_id, "m.room.member", key, true);
-                    console.log("Member", member);
-                    const local_name = `${g.memberName} (QQ)`;
-                    if(member.displayname!==local_name){
-                        member.displayname = local_name;
-                        console.log("Reset displayname locally.");
-                        await intent.sendStateEvent(mx_id, "m.room.member", key, member);
-                    }
-                    const member2 = await intent.getStateEvent(mx_id, "m.room.member", key, true);
-                    console.log("Member after", member2);
-                    console.log("uploaded")
-                    if(msg){
-                        let data: any = {
-                            body: msg,
-                            format: 'org.matrix.custom.html',
-                            formatted_body: formatted,
-                            msgtype: "m.text"
-                        };
-                        if(quoted!==null){
-                            const orig_mat = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
-                            if(orig_mat!==null){
-                                data["m.relates_to"] = {"m.in_reply_to": {event_id: orig_mat}};
-                            }
-                        }
-                        const {event_id} = await intent.sendMessage(mx_id, data)
-                        const qqsource: [string, string] = [String(group_id), source!];
-                        await addMatrix2QQMsgMapping(event_id, qqsource);
-                        await addQQ2MatrixMsgMapping(qqsource, event_id);
-                    }
-
-                    for(const url of images){
-                        const sending_prompt = intent.sendTyping(mx_id, true);
-                        const qqsource: [string, string] = [String(group_id), source!];
-                        try{
-                            const img = await fetch(url, {agent});
-                            const buffer = await img.arrayBuffer();
-                            const content = await intent.uploadContent(Buffer.from(buffer));
-                            const {event_id} = await intent.sendMessage(mx_id, {
-                                msgtype: "m.image",
-                                url: content,
-                                body: `QQ图片`,
-                                info: {
-                                    mimetype: "image/png"
-                                }
-                            })
-                            await addMatrix2QQMsgMapping(event_id, qqsource);
-                        }catch(err){
-                            const {event_id} = await intent.sendText(mx_id, "Failed to send image: "+url);
-                            await addMatrix2QQMsgMapping(event_id, qqsource);
-                        }
-                        await sending_prompt;
-                    }
-                    await intent.sendTyping(mx_id, false);
                 }
+                const superintent = bridge.getIntent("@gjz010_qqbot_admin:matrix.gjz010.com");
+                for(const chain of messageChain) {
+                    if (chain.type === 'Plain'){
+                        msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
+                        formatted += Plain.value(chain);
+                    } else if (chain.type === 'At'){
+                        if (chain.target! == 3533630837) {
+                            // try to find quoted.
+                            if(quoted){
+                                const quoted_mx_msg = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
+                                if(quoted_mx_msg!==null){
+                                    const sender = await superintent.getEvent(mx_id, quoted_mx_msg, true);
+                                    if(sender){
+                                        const sender_id: string = sender.sender;
+                                        msg += "小火龙";
+                                        formatted += `<a href="https://matrix.to/#/${sender_id}">小火龙</a>`;
+                                        continue;
+                                    }
+                                }
+                            }
+                            
+                            msg += "小火龙";
+                            formatted += `<a href="https://matrix.to/#/@gjz010_qqbot_admin:matrix.gjz010.com">小火龙</a>`;
+                        } else {
+                            let id = `gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com`;
+                            msg += id;
+                            formatted += `<a href="https://matrix.to/#/@${id}">${id}</a>`;
+                        }
+                    } else if(chain.type=="Source"){
+                        source= String(chain.id!);
+                    } else if(chain.type=='Image'){
+                        console.log(chain);
+                        images.push(chain.url!);
+                        //msg+='[图图]';  
+                    }
+                }
+            
+
+                console.log(message.sender)
+                const key = `@gjz010_qqbot_qq_${g.id}:matrix.gjz010.com`;
+                const intent = bridge.getIntent(key);
+                await joinRoom(key, mx_id);
+                const group_profile = await bot.getGroupMemberProfile(g.group.id, g.id);
+                const user_profile = await intent.getProfileInfo(key, undefined, false);
+                console.log("User", user_profile);
+                console.log("Group", group_profile);
+                const a = `${group_profile.nickname} (QQ)`;
+                const b = await getAvatarUrl(g.id, intent) ?? undefined;
+                if(user_profile.displayname!==a){
+                    console.log("Reset displayname globally: ignored.");
+                    //await intent.setDisplayName(a);
+                }
+                if(user_profile.avatar_url!==b){
+                    if(b!==undefined) await intent.setAvatarUrl(b);
+                }
+                console.log("DEBUG", (intent as any).opts)
+                const member = await intent.getStateEvent(mx_id, "m.room.member", key, true);
+                console.log("Member", member);
+                const local_name = `${g.memberName} (QQ)`;
+                if(member.displayname!==local_name){
+                    member.displayname = local_name;
+                    console.log("Reset displayname locally.");
+                    await intent.sendStateEvent(mx_id, "m.room.member", key, member);
+                }
+                const member2 = await intent.getStateEvent(mx_id, "m.room.member", key, true);
+                console.log("Member after", member2);
+                console.log("uploaded")
+                if(msg){
+                    let data: any = {
+                        body: msg,
+                        format: 'org.matrix.custom.html',
+                        formatted_body: formatted,
+                        msgtype: "m.text"
+                    };
+                    if(quoted!==null){
+                        const orig_mat = await getQQ2MatrixMsgMapping([String(group_id), quoted]);
+                        if(orig_mat!==null){
+                            data["m.relates_to"] = {"m.in_reply_to": {event_id: orig_mat}};
+                        }
+                    }
+                    const {event_id} = await intent.sendMessage(mx_id, data)
+                    const qqsource: [string, string] = [String(group_id), source!];
+                    await addMatrix2QQMsgMapping(event_id, qqsource);
+                    await addQQ2MatrixMsgMapping(qqsource, event_id);
+                }
+
+                for(const url of images){
+                    const sending_prompt = intent.sendTyping(mx_id, true);
+                    const qqsource: [string, string] = [String(group_id), source!];
+                    try{
+                        const img = await fetch(url, {agent});
+                        const buffer = await img.arrayBuffer();
+                        const content = await intent.uploadContent(Buffer.from(buffer));
+                        const {event_id} = await intent.sendMessage(mx_id, {
+                            msgtype: "m.image",
+                            url: content,
+                            body: `QQ图片`,
+                            info: {
+                                mimetype: "image/png"
+                            }
+                        })
+                        await addMatrix2QQMsgMapping(event_id, qqsource);
+                    }catch(err){
+                        const {event_id} = await intent.sendText(mx_id, "Failed to send image: "+url);
+                        await addMatrix2QQMsgMapping(event_id, qqsource);
+                    }
+                    await sending_prompt;
+                }
+                await intent.sendTyping(mx_id, false);
+
 
 
             }
