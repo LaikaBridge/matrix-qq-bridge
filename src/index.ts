@@ -1,6 +1,6 @@
 import Mirai, { GroupTarget } from 'node-mirai-sdk';
 import {Cli, Bridge, AppServiceRegistration, MembershipCache, Intent, UserMembership, PowerLevelContent} from "matrix-appservice-bridge"
-import {marked} from "marked"
+import {marked, use} from "marked"
 import fetch from "node-fetch"
 import { LocalStorage } from "node-localstorage";
 import http from 'node:http';
@@ -166,8 +166,8 @@ new Cli({
     },
     run: function(port, config_) {
         const cache = new MembershipCache();
-        const prev_name_dict: Record<string, string> = {};
-        const prev_profile_dict : Record<string, string> = {};
+        const prev_name_dict : Record<string, Record<string, string>> = {}; // RoomId -> UserId -> RoomNick
+        const prev_profile_dict: Record<string, string> = {}; // UserId -> UserNick
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
@@ -205,15 +205,16 @@ new Cli({
                         //console.log(prof);
                         prev_profile_dict[user_id] = prof.displayname ?? name;
                     }
-                    name = prev_name_dict[user_id] ?? name;
+                    const room_prev_name_dict = prev_name_dict[event.room_id];
+                    name = room_prev_name_dict[user_id] ?? name;
                     const profile = cache.getMemberProfile(event.room_id, event.sender);
                     if(profile.displayname===undefined){
-                        if(prev_name_dict[user_id]===undefined){
+                        if(room_prev_name_dict[user_id]===undefined){
                             const state = await intent.getStateEvent(room_id, "m.room.member", user_id, true);
                             //console.log(state)
-                            prev_name_dict[user_id] = state?.displayname ?? name;
+                            room_prev_name_dict[user_id] = state?.displayname ?? name;
                         }
-                        name = prev_name_dict[user_id] ?? name;
+                        name = room_prev_name_dict[user_id] ?? name;
                     }else{
                         name = profile.displayname ?? name;
                     }
