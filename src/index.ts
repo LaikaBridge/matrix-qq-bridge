@@ -379,6 +379,9 @@ new Cli({
                 if (chain.type === 'Plain'){
                     msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
                 }
+                if (chain.type === 'At'){
+                    msg += `@gjz010_qqbot_qq_${chain.target!}:matrix.gjz010.com `;
+                }
                 if(chain.type=="Source"){
                     source= String(chain.id!);
                 }
