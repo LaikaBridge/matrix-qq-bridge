@@ -212,7 +212,7 @@ new Cli({
                     if(prev_profile_dict[user_id]===undefined){
                         const prof = await intent.getProfileInfo(user_id, null, true);
                         //console.log(prof);
-                        prev_profile_dict[user_id] = prof.displayname ?? name;
+                        prev_profile_dict[user_id] = prof.displayname?.trim() ?? name;
                     }
                     if(!prev_name_dict[event.room_id]) prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
@@ -222,11 +222,11 @@ new Cli({
                         if(room_prev_name_dict[user_id]===undefined){
                             const state = await intent.getStateEvent(room_id, "m.room.member", user_id, true);
                             //console.log(state)
-                            room_prev_name_dict[user_id] = state?.displayname ?? name;
+                            room_prev_name_dict[user_id] = state?.displayname?.trim() ?? name;
                         }
                         name = room_prev_name_dict[user_id] ?? name;
                     }else{
-                        name = profile.displayname ?? name;
+                        name = profile.displayname?.trim() ?? name;
                     }
                     name = name || user_id;
                     async function parseQuote(){
