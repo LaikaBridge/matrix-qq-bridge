@@ -92,6 +92,12 @@ function findQQByMx(mx: string){
     }
     return null;
 }
+function escapeHTML(s: string) {
+    return s.replace(
+        /[^0-9A-Za-z ]/g,
+        c => "&#" + c.charCodeAt(0) + ";"
+    );
+}
 interface MembershipPair{
     membership: UserMembership,
     profile: MatrixProfileInfo
@@ -455,7 +461,8 @@ new Cli({
                                     if(sender){
                                         const sender_id: string = sender.sender;
                                         msg += config.puppetCustomization.adminName;
-                                        formatted += `<a href="https://matrix.to/#/${sender_id}">${config.puppetCustomization.adminName}</a>`;
+                                        const profile = await superintent.getStateEvent(mx_id, "m.room.member", sender_id, true);
+                                        formatted += `<a href="https://matrix.to/#/${sender_id}">${escapeHTML(profile.displayname)}</a>`;
                                         continue;
                                     }
                                 }
@@ -464,9 +471,10 @@ new Cli({
                             msg += config.puppetCustomization.adminName;
                             formatted += `<a href="https://matrix.to/#/${matrixAdminId}">${config.puppetCustomization.adminName}</a>`;
                         } else {
-                            let id = matrixPuppetId(chain.target!)
+                            const id = matrixPuppetId(chain.target!)
                             msg += id;
-                            formatted += `<a href="https://matrix.to/#/${id}">${id.substring(1)}</a>`;
+                            const profile = await superintent.getStateEvent(mx_id, "m.room.member", id, true);
+                            formatted += `<a href="https://matrix.to/#/${id}">${escapeHTML(profile.displayname)}</a>`;
                         }
                     } else if(chain.type=="Source"){
                         source= String(chain.id!);
