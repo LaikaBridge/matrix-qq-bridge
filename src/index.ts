@@ -450,7 +450,7 @@ new Cli({
                 for(const chain of messageChain) {
                     if (chain.type === 'Plain'){
                         msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
-                        formatted += Plain.value(chain);
+                        formatted += escapeHTML(Plain.value(chain));
                     } else if (chain.type === 'At'){
                         if (chain.target! == config.mirai.qq) {
                             // try to find quoted.
