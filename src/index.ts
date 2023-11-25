@@ -460,8 +460,8 @@ new Cli({
                                     const sender = await superintent.getEvent(mx_id, quoted_mx_msg, true);
                                     if(sender){
                                         const sender_id: string = sender.sender;
-                                        msg += config.puppetCustomization.adminName;
                                         const profile = await superintent.getStateEvent(mx_id, "m.room.member", sender_id, true);
+                                        msg += profile.displayname;
                                         formatted += `<a href="https://matrix.to/#/${sender_id}">${escapeHTML(profile.displayname)}</a>`;
                                         continue;
                                     }
@@ -472,8 +472,8 @@ new Cli({
                             formatted += `<a href="https://matrix.to/#/${matrixAdminId}">${config.puppetCustomization.adminName}</a>`;
                         } else {
                             const id = matrixPuppetId(chain.target!)
-                            msg += id;
                             const profile = await superintent.getStateEvent(mx_id, "m.room.member", id, true);
+                            msg += profile.displayname;
                             formatted += `<a href="https://matrix.to/#/${id}">${escapeHTML(profile.displayname)}</a>`;
                         }
                     } else if(chain.type=="Source"){
