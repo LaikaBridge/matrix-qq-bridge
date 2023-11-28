@@ -461,20 +461,20 @@ new Cli({
                                     if(sender){
                                         const sender_id: string = sender.sender;
                                         const profile = await superintent.getStateEvent(mx_id, "m.room.member", sender_id, true);
-                                        msg += profile.displayname;
-                                        formatted += `<a href="https://matrix.to/#/${sender_id}">${escapeHTML(profile.displayname)}</a>`;
+                                        msg += "@" + profile.displayname;
+                                        formatted += `<a href="https://matrix.to/#/${sender_id}">@${escapeHTML(profile.displayname)}</a>`;
                                         continue;
                                     }
                                 }
                             }
                             
-                            msg += config.puppetCustomization.adminName;
-                            formatted += `<a href="https://matrix.to/#/${matrixAdminId}">${config.puppetCustomization.adminName}</a>`;
+                            msg += "@" + config.puppetCustomization.adminName;
+                            formatted += `<a href="https://matrix.to/#/${matrixAdminId}">@${config.puppetCustomization.adminName}</a>`;
                         } else {
                             const id = matrixPuppetId(chain.target!)
                             const profile = await superintent.getStateEvent(mx_id, "m.room.member", id, true);
-                            msg += profile.displayname;
-                            formatted += `<a href="https://matrix.to/#/${id}">${escapeHTML(profile.displayname)}</a>`;
+                            msg += "@" + profile.displayname;
+                            formatted += `<a href="https://matrix.to/#/${id}">@${escapeHTML(profile.displayname)}</a>`;
                         }
                     } else if(chain.type=="Source"){
                         source= String(chain.id!);
