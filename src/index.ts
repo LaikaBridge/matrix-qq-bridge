@@ -437,6 +437,36 @@ new Cli({
                 console.log(messageChain)
                 let quoted : string | null = null
                 let source : string | null = null
+                for(const chain of messageChain){
+                    if(chain.type=="Forward"){
+                        const local_msgs : string[] = [];
+                        const local_formatted_msgs : string[] = [];
+                        for(const node of chain.nodeList){
+                            let local_msg = ""
+                            let local_formatted = ""
+                            const local_sender = node.senderName;
+                            for(const localchain of node.messageChain){
+                                if(localchain.type==="Plain"){
+                                    local_msg += localchain.text??"";
+                                    local_formatted += escape(localchain.text??"")
+                                }else if(localchain.type==="At"){
+                                    local_msg += `@${localchain.display??""}`
+                                    local_formatted += `@${escape(localchain.display??"")}`
+                                }else if(localchain.type==="Image"){
+                                    local_msg += "[图片]"
+                                    local_formatted += "[图片]"
+                                }else if(localchain.type==="Forward"){
+                                    local_msg += "[转发消息]"
+                                    local_formatted += "[转发消息]"
+                                }
+                            }
+                            local_msgs.push(`${local_sender}: ${local_msg}`);
+                            local_formatted_msgs.push(`${escape(local_sender)}: ${local_formatted}`);
+                        }
+                        msg += local_msgs.join("\n")
+                        formatted += `<blockquote>\n<p>${local_formatted_msgs.join("<br>")}</p></blockquote>`
+                    }
+                }
                 for(const chain of messageChain) {
                     if(chain.type=="Quote"){
                         quoted=String(chain.id!);
