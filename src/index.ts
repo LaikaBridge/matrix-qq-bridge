@@ -9,6 +9,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { MatrixProfileInfo } from 'matrix-bot-sdk';
 import throttledQueue from 'throttled-queue';
 import { TextNode, HTMLElement, Node, parse } from 'node-html-parser';
+import {escape, unescape} from 'html-escaper';
 const { Plain, At, Image } = Mirai.MessageComponent;
 const config = readConfig();
 const localStorage = new LocalStorage('./extra-storage.db');
@@ -92,12 +93,7 @@ function findQQByMx(mx: string){
     }
     return null;
 }
-function escapeHTML(s: string) {
-    return s.replace(
-        /[^0-9A-Za-z ]/g,
-        c => "&#" + c.charCodeAt(0) + ";"
-    );
-}
+
 interface MembershipPair{
     membership: UserMembership,
     profile: MatrixProfileInfo
@@ -450,7 +446,7 @@ new Cli({
                 for(const chain of messageChain) {
                     if (chain.type === 'Plain'){
                         msg += Plain.value(chain);                  // 从 messageChain 中提取文字内容
-                        formatted += escapeHTML(Plain.value(chain));
+                        formatted += escape(Plain.value(chain));
                     } else if (chain.type === 'At'){
                         if (chain.target! == config.mirai.qq) {
                             // try to find quoted.
@@ -462,7 +458,7 @@ new Cli({
                                         const sender_id: string = sender.sender;
                                         const profile = await superintent.getStateEvent(mx_id, "m.room.member", sender_id, true);
                                         msg += "@" + profile.displayname;
-                                        formatted += `<a href="https://matrix.to/#/${sender_id}">@${escapeHTML(profile.displayname)}</a>`;
+                                        formatted += `<a href="https://matrix.to/#/${sender_id}">@${escape(profile.displayname)}</a>`;
                                         continue;
                                     }
                                 }
@@ -474,7 +470,7 @@ new Cli({
                             const id = matrixPuppetId(chain.target!)
                             const profile = await superintent.getStateEvent(mx_id, "m.room.member", id, true);
                             msg += "@" + profile.displayname;
-                            formatted += `<a href="https://matrix.to/#/${id}">@${escapeHTML(profile.displayname)}</a>`;
+                            formatted += `<a href="https://matrix.to/#/${id}">@${escape(profile.displayname)}</a>`;
                         }
                     } else if(chain.type=="Source"){
                         source= String(chain.id!);
