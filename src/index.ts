@@ -206,9 +206,13 @@ new Cli({
                     let name = user_id;
                     const intent = bridge.getIntent(matrixAdminId);
                     if(prev_profile_dict[user_id]===undefined){
+                        try{
                         const prof = await intent.getProfileInfo(user_id, null, true);
                         //console.log(prof);
                         prev_profile_dict[user_id] = prof.displayname?.trim() ?? name;
+                        }catch(ex){
+                          console.log(ex);
+                        }
                     }
                     if(!prev_name_dict[event.room_id]) prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
@@ -570,7 +574,7 @@ new Cli({
                         const {event_id} = await intent.sendMessage(mx_id, {
                             msgtype: "m.image",
                             url: content,
-                            body: `QQ图片`,
+                            body: `QQ图片.png`,
                             info: {
                                 mimetype: "image/png"
                             }
