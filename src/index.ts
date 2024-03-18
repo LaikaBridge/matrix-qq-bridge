@@ -232,13 +232,13 @@ new Cli({
                         const l4 = l3===undefined?l3:await getMatrix2QQMsgMapping(l3);
                         return l4 ?? null;
                     }
-                    async function htmlToMsgChain(s: string): Promise<MessageChain[]> {
+                    function htmlToMsgChain(s: string): MessageChain[] {
                         const html = parse(s);
                         let chain: MessageChain[] = [Plain(`${name}: `)];
                         if (html.firstChild instanceof HTMLElement && html.firstChild?.tagName == "MX-REPLY") {
                             html.firstChild.remove();
                         }
-                        async function onNode(node: Node) {
+                        function onNode(node: Node) {
                             if (node instanceof HTMLElement) {
                                 if (node.tagName == "A" && node.attributes?.href?.startsWith("https://matrix.to/#/@")) {
                                     let user_id = node.attributes.href.slice("https://matrix.to/#/".length);
@@ -249,10 +249,10 @@ new Cli({
                                     } else {
                                         chain.push(Plain("@" + node.text));
                                     }
+                                } else if (node.tagName == "BR") {
+                                    chain.push(Plain("\n"));
                                 } else {
-                                    for (let child of node.childNodes) {
-                                        onNode(child);
-                                    }
+                                    node.childNodes.forEach(onNode);
                                 }
                             } else if (node instanceof TextNode) {
                                 chain.push(Plain(node.text));
@@ -269,7 +269,7 @@ new Cli({
                             if (event.content.format == "org.matrix.custom.html") {
                                 const s = event.content.formatted_body as string;
                                 msg=await throttle(async ()=>{
-                                    return await bot.sendQuotedGroupMessage(await htmlToMsgChain(s), qq_id, Number(l4[1]));
+                                    return await bot.sendQuotedGroupMessage(htmlToMsgChain(s), qq_id, Number(l4[1]));
                                 });
                             } else {
                                 const s = event.content.body as string;
@@ -286,7 +286,7 @@ new Cli({
                             if (event.content.format == "org.matrix.custom.html") {
                                 const s = event.content.formatted_body as string;
                                 msg=await throttle(async ()=>{
-                                    return await bot.sendGroupMessage(await htmlToMsgChain(s), qq_id);
+                                    return await bot.sendGroupMessage(htmlToMsgChain(s), qq_id);
                                 });
                             } else {
                                 msg=await throttle(async ()=>{
