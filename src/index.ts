@@ -40,6 +40,35 @@ const colors = {
     "⚪": [230, 231, 232],
 };
 
+// h in radians, s and v in [0, 255]
+function rgbToHsv(rgb: number[]): number[] {
+    const [r, g, b] = rgb;
+    const min = Math.min(r, g, b);
+    const max = Math.max(r, g, b);
+    const c = max - min;
+    let h;
+    if (c == 0) {
+        h = 0;
+    } else if (r >= g && r >= b) {
+        h = (g - b) / c % 6;
+    } else if (g >= r && g >= b) {
+        h = (b - r) / c + 2;
+    } else {
+        h = (r - g) / c + 4;
+    }
+    h *= Math.PI / 3;
+    const v = max;
+    const s = v == 0 ? 0 : 255 * c / v;
+    return [h, s, v];
+}
+
+function hsvDistance(a: number[], b: number[]): number {
+    const [h1, s1, v1] = a;
+    const [h2, s2, v2] = b;
+    const deltav = v1 - v2;
+    return s1 * s1 + s2 * s2 + deltav * deltav - 2 * s1 * s2 * Math.cos(h1 - h2);
+}
+
 let agent: SocksProxyAgent | any | undefined = undefined;
 
 if (config.socksProxy.enable) {
@@ -307,15 +336,11 @@ new Cli({
                                 sum[2] += color.b * (color.a/255);
                             }
                         }
-                        sum = sum.map(v => v / img.getWidth() / img.getHeight());
-                        function distance(a: number[], b: number[]) {
-                            const x = a[0] - b[0];
-                            const y = a[1] - b[1];
-                            const z = a[2] - b[2];
-                            return x * x + y * y + z * z;
-                        }
+                        const hsv = rgbToHsv(sum.map(v => v / img.getWidth() / img.getHeight()));
                         return Object.entries(colors).sort(
-                            (a, b) => distance(a[1] as number[], sum) - distance(b[1] as number[], sum))[0][0] as string;
+                            (a, b) => hsvDistance(rgbToHsv(a[1] as number[]), hsv) 
+                                    - hsvDistance(rgbToHsv(b[1] as number[]), hsv)
+                            )[0][0] as string;
                     }
                     if (!prev_name_dict[event.room_id])
                         prev_name_dict[event.room_id] = {};
