@@ -302,9 +302,9 @@ new Cli({
                         for (let x = 0; x < img.getWidth(); x++) {
                             for (let y = 0; y < img.getHeight(); y++) {
                                 const color = Jimp.intToRGBA(img.getPixelColor(x, y));
-                                sum[0] += color.r;
-                                sum[1] += color.g;
-                                sum[2] += color.b;
+                                sum[0] += color.r * (color.a/255);
+                                sum[1] += color.g * (color.a/255);
+                                sum[2] += color.b * (color.a/255);
                             }
                         }
                         sum.map(v => v / img.getWidth() / img.getHeight());
