@@ -18,6 +18,8 @@ import { MatrixProfileInfo } from 'matrix-bot-sdk';
 import throttledQueue from 'throttled-queue';
 import { TextNode, HTMLElement, Node, parse } from 'node-html-parser';
 import { escape, unescape } from 'html-escaper';
+import Jimp from "jimp";
+
 const { Plain, At, Image } = Mirai.MessageComponent;
 
 const config = readConfig();
@@ -25,6 +27,18 @@ const config = readConfig();
 const localStorage = new LocalStorage('./extra-storage.db');
 
 const BOT_UPDATE_VERSION = 1;
+
+const colors = {
+    "🔴": [221, 46, 68], // [R, G, B]
+    "🔵": [85, 172, 238],
+    "🟠": [244, 144, 12],
+    "🟡": [253, 203, 88],
+    "🟢": [120, 177, 89],
+    "🟣": [170, 142, 214],
+    "🟤": [193, 105, 79],
+    "⚫": [49, 55, 61],
+    "⚪": [230, 231, 232],
+};
 
 let agent: SocksProxyAgent | any | undefined = undefined;
 
@@ -202,8 +216,8 @@ new Cli({
     },
     run: function (port, config_) {
         const cache = new MembershipCache();
-        const prev_name_dict: Record<string, Record<string, string>> = {}; // RoomId -> UserId -> RoomNick
-        const prev_profile_dict: Record<string, string> = {}; // UserId -> UserNick
+        const prev_name_dict: Record<string, Record<string, { name: string, avatar: string }>> = {}; // RoomId -> UserId -> RoomNick * RoomAvatar
+        // const prev_profile_dict: Record<string, { name: string, avatar: string }> = {}; // UserId -> UserNick * Avatar
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
@@ -235,46 +249,95 @@ new Cli({
                     if (qq_id === null) return;
                     let user_id = event.sender;
                     let name = user_id;
+                    let avatar = "";
                     const intent = bridge.getIntent(matrixAdminId);
-                    if (prev_profile_dict[user_id] === undefined) {
-                        try {
-                            const prof = await intent.getProfileInfo(
-                                user_id,
-                                null,
-                                true,
-                            );
-                            //console.log(prof);
-                            prev_profile_dict[user_id] =
-                                prof.displayname?.trim() ?? name;
-                        } catch (ex) {
-                            console.log(ex);
+                    // if (prev_profile_dict[user_id] === undefined) {
+                    //     try {
+                    //         const prof = await intent.getProfileInfo(
+                    //             user_id,
+                    //             null,
+                    //             true,
+                    //         );
+
+                    //         let avatar = "";
+                    //         if (prof.avatar_url) {
+                    //             const img = await Jimp.read(prof.avatar_url);
+                    //             let sum = [0, 0, 0];
+                    //             for (let x = 0; x < img.getWidth(); x++) {
+                    //                 for (let y = 0; y < img.getHeight(); y++) {
+                    //                     const color = Jimp.intToRGBA(img.getPixelColor(x, y));
+                    //                     sum[0] += color.r;
+                    //                     sum[1] += color.g;
+                    //                     sum[2] += color.b;
+                    //                 }
+                    //             }
+                    //             sum.map(v => v / img.getWidth() / img.getHeight());
+                    //             function distance(a: number[], b: number[]) {
+                    //                 const x = a[0] - b[0];
+                    //                 const y = a[1] - b[1];
+                    //                 const z = a[2] - b[2];
+                    //                 return x * x + y * y + z * z;
+                    //             }
+                    //             avatar = Object.entries(colors).sort(
+                    //                 (a, b) => distance(a[1] as number[], sum) - distance(b[1] as number[], sum))[0][0] as string;
+                    //         }
+
+                    //         prev_profile_dict[user_id] = {
+                    //             name: prof.displayname?.trim() ?? name,
+                    //             avatar,
+                    //         };
+                    //     } catch (ex) {
+                    //         console.log(ex);
+                    //     }
+                    // }
+                    async function getAvatar(url?: string): Promise<string> {
+                        if (!url) return "";
+                        const img = await Jimp.read(url);
+                        let sum = [0, 0, 0];
+                        for (let x = 0; x < img.getWidth(); x++) {
+                            for (let y = 0; y < img.getHeight(); y++) {
+                                const color = Jimp.intToRGBA(img.getPixelColor(x, y));
+                                sum[0] += color.r;
+                                sum[1] += color.g;
+                                sum[2] += color.b;
+                            }
                         }
+                        sum.map(v => v / img.getWidth() / img.getHeight());
+                        function distance(a: number[], b: number[]) {
+                            const x = a[0] - b[0];
+                            const y = a[1] - b[1];
+                            const z = a[2] - b[2];
+                            return x * x + y * y + z * z;
+                        }
+                        return Object.entries(colors).sort(
+                            (a, b) => distance(a[1] as number[], sum) - distance(b[1] as number[], sum))[0][0] as string;
                     }
                     if (!prev_name_dict[event.room_id])
                         prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
-                    name = room_prev_name_dict[user_id] ?? name;
-                    const profile = cache.getMemberProfile(
-                        event.room_id,
-                        event.sender,
-                    );
-                    if (profile.displayname === undefined) {
-                        if (room_prev_name_dict[user_id] === undefined) {
+                    if (room_prev_name_dict[user_id] === undefined) {
+                        const profile = cache.getMemberProfile(
+                            event.room_id,
+                            event.sender,
+                        );
+                        if (profile.displayname === undefined) {
                             const state = await intent.getStateEvent(
                                 room_id,
                                 'm.room.member',
                                 user_id,
                                 true,
                             );
-                            //console.log(state)
-                            room_prev_name_dict[user_id] =
-                                state?.displayname?.trim() ?? name;
+                            room_prev_name_dict[user_id].name = state?.displayname?.trim() ?? name;
+                            room_prev_name_dict[user_id].avatar = await getAvatar(state?.avatar_url);
+                        } else {
+                            room_prev_name_dict[user_id].name = profile.displayname?.trim() ?? name;
+                            room_prev_name_dict[user_id].avatar = await getAvatar(profile.avatar_url);
                         }
-                        name = room_prev_name_dict[user_id] ?? name;
-                    } else {
-                        name = profile.displayname?.trim() ?? name;
                     }
+                    name = room_prev_name_dict[user_id].name ?? name;
+                    avatar = room_prev_name_dict[user_id].avatar ?? avatar;
                     name = name || user_id;
+                    avatar = avatar || "";
                     async function parseQuote() {
                         const l1: any = event.content['m.relates_to'];
                         const l2: any = l1 ? l1['m.in_reply_to'] : undefined;
@@ -357,7 +420,7 @@ new Cli({
                                 }
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
-                                        `${name}: ${lines.join('\n')}` as any,
+                                        `${avatar}${name}: ${lines.join('\n')}` as any,
                                         qq_id,
                                         Number(l4[1]),
                                     );
@@ -535,12 +598,12 @@ new Cli({
 
                 try {
                     await superintent;
-                } catch (err) {}
+                } catch (err) { }
                 try {
                     await superintent.join(room_id);
-                } catch (err) {}
+                } catch (err) { }
                 await superintent.invite(room_id, bot);
-            } catch (err) {}
+            } catch (err) { }
         }
         bot.onEvent('groupRecall', async (message) => {
             const group_id = message.group.id;
