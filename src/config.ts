@@ -31,12 +31,18 @@ interface SocksProxyConfig{
     enable: boolean
     url: string
 }
+interface RembgConfig{
+    enable: boolean
+    url: string
+}
+
 interface Config{
     mirai: MiraiConfig
     matrix: MatrixConfig
     bridgedGroups: GroupBridgeRule[]
     socksProxy: SocksProxyConfig
     puppetCustomization: PuppetCustomization
+//    rembgService: RembgConfig
 }
 
 export function readConfig(): Config{

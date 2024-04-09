@@ -307,7 +307,7 @@ new Cli({
                                 sum[2] += color.b * (color.a/255);
                             }
                         }
-                        sum.map(v => v / img.getWidth() / img.getHeight());
+                        sum = sum.map(v => v / img.getWidth() / img.getHeight());
                         function distance(a: number[], b: number[]) {
                             const x = a[0] - b[0];
                             const y = a[1] - b[1];
