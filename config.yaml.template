@@ -21,7 +21,12 @@ bridgedGroups:
 socksProxy:
     enable: false
     url: socks://127.0.0.1:8003
+# Puppet customization info
 puppetCustomization:
     customizationVersion: 1
     adminName: 小火龙
     adminAvatar: mxc://mozilla.org/4a6de5a3ca9bb4f4c1d2f7a4478f635643e982361728112230710378496
+# Rembg service info, for trimming background before computing color.
+rembgService:
+    enable: false
+    url: http://127.0.0.1:7000/
