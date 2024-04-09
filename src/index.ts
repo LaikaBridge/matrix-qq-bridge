@@ -346,7 +346,10 @@ new Cli({
                     name = room_prev_name_dict[user_id].name ?? name;
                     avatar = room_prev_name_dict[user_id].avatar ?? avatar;
                     name = name || user_id;
-                    avatar = avatar || "";
+                    if(avatar){
+                        name = `${avatar} ${name}`
+                    }
+                    //avatar = avatar || "";
                     async function parseQuote() {
                         const l1: any = event.content['m.relates_to'];
                         const l2: any = l1 ? l1['m.in_reply_to'] : undefined;
@@ -429,7 +432,7 @@ new Cli({
                                 }
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
-                                        `${avatar}${name}: ${lines.join('\n')}` as any,
+                                        `${name}: ${lines.join('\n')}` as any,
                                         qq_id,
                                         Number(l4[1]),
                                     );
