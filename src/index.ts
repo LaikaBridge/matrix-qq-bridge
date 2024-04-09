@@ -40,8 +40,8 @@ const colors = {
     "⚪": [230, 231, 232],
 };
 
-// h in radians, s and v in [0, 255]
-function rgbToHsv(rgb: number[]): number[] {
+// h in radians, c and v in [0, 255], c = v * s
+function rgbToHcv(rgb: number[]): number[] {
     const [r, g, b] = rgb;
     const min = Math.min(r, g, b);
     const max = Math.max(r, g, b);
@@ -58,15 +58,15 @@ function rgbToHsv(rgb: number[]): number[] {
     }
     h *= Math.PI / 3;
     const v = max;
-    const s = v == 0 ? 0 : 255 * c / v;
-    return [h, s, v];
+    // const s = v == 0 ? 0 : 255 * c / v;
+    return [h, c, v];
 }
 
-function hsvDistance(a: number[], b: number[]): number {
-    const [h1, s1, v1] = a;
-    const [h2, s2, v2] = b;
+function hcvDistance(a: number[], b: number[]): number {
+    const [h1, c1, v1] = a;
+    const [h2, c2, v2] = b;
     const deltav = v1 - v2;
-    return s1 * s1 + s2 * s2 + deltav * deltav - 2 * s1 * s2 * Math.cos(h1 - h2);
+    return c1 * c1 + c2 * c2 + deltav * deltav - 2 * c1 * c2 * Math.cos(h1 - h2);
 }
 
 let agent: SocksProxyAgent | any | undefined = undefined;
@@ -336,10 +336,10 @@ new Cli({
                                 sum[2] += color.b * (color.a/255);
                             }
                         }
-                        const hsv = rgbToHsv(sum.map(v => v / img.getWidth() / img.getHeight()));
+                        const hcv = rgbToHcv(sum.map(v => v / img.getWidth() / img.getHeight()));
                         return Object.entries(colors).sort(
-                            (a, b) => hsvDistance(rgbToHsv(a[1] as number[]), hsv) 
-                                    - hsvDistance(rgbToHsv(b[1] as number[]), hsv)
+                            (a, b) => hcvDistance(rgbToHcv(a[1] as number[]), hcv) 
+                                    - hcvDistance(rgbToHcv(b[1] as number[]), hcv)
                             )[0][0] as string;
                     }
                     if (!prev_name_dict[event.room_id])
