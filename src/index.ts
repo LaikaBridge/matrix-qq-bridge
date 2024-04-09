@@ -328,15 +328,19 @@ new Cli({
                         const buffer = await req.arrayBuffer();
                         const img = await Jimp.read(Buffer.from(buffer));
                         let sum = [0, 0, 0];
+                        let counter = 0;
                         for (let x = 0; x < img.getWidth(); x++) {
                             for (let y = 0; y < img.getHeight(); y++) {
-                                const color = Jimp.intToRGBA(img.getPixelColor(x, y));
-                                sum[0] += color.r * (color.a/255);
-                                sum[1] += color.g * (color.a/255);
-                                sum[2] += color.b * (color.a/255);
+                                const {r, g, b, a} = Jimp.intToRGBA(img.getPixelColor(x, y));
+                                if (!(a == 0 || r == 255 && g == 255 && b == 255)) {
+                                    sum[0] += r * (a/255);
+                                    sum[1] += g * (a/255);
+                                    sum[2] += b * (a/255);
+                                    counter++;
+                                }
                             }
                         }
-                        const hcv = rgbToHcv(sum.map(v => v / img.getWidth() / img.getHeight()));
+                        const hcv = rgbToHcv(counter == 0 ? [255, 255, 255] : sum.map(v => v / counter));
                         return Object.entries(colors).sort(
                             (a, b) => hcvDistance(rgbToHcv(a[1] as number[]), hcv) 
                                     - hcvDistance(rgbToHcv(b[1] as number[]), hcv)
