@@ -290,9 +290,14 @@ new Cli({
                     //         console.log(ex);
                     //     }
                     // }
-                    async function getAvatar(url?: string): Promise<string> {
-                        if (!url) return "";
-                        const img = await Jimp.read(url);
+                    async function getAvatarByMxUrl(mxurl?: string): Promise<string> {
+                        if (!mxurl) return "";
+                        const url = intent.matrixClient.mxcToHttp(
+                            mxurl,
+                        );
+                        const req = await fetch(url);
+                        const buffer = await req.arrayBuffer();
+                        const img = await Jimp.read(Buffer.from(buffer));
                         let sum = [0, 0, 0];
                         for (let x = 0; x < img.getWidth(); x++) {
                             for (let y = 0; y < img.getHeight(); y++) {
@@ -327,11 +332,15 @@ new Cli({
                                 user_id,
                                 true,
                             );
-                            room_prev_name_dict[user_id].name = state?.displayname?.trim() ?? name;
-                            room_prev_name_dict[user_id].avatar = await getAvatar(state?.avatar_url);
+                            room_prev_name_dict[user_id] = {
+                                name: state?.displayname?.trim() ?? name,
+                                avatar: await getAvatarByMxUrl(state?.avatar_url)
+                            };
                         } else {
-                            room_prev_name_dict[user_id].name = profile.displayname?.trim() ?? name;
-                            room_prev_name_dict[user_id].avatar = await getAvatar(profile.avatar_url);
+                            room_prev_name_dict[user_id] = {
+                                name : profile.displayname?.trim() ?? name,
+                                avatar : await getAvatarByMxUrl(profile.avatar_url)
+                            }
                         }
                     }
                     name = room_prev_name_dict[user_id].name ?? name;
