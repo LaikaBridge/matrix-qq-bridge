@@ -331,19 +331,19 @@ new Cli({
                         const req = await fetch(url);
                         const buffer = await req.arrayBuffer();
                         const img = await Jimp.read(Buffer.from(buffer));
-                        let colorFreq: Record<string, number> = {};
+                        let colorCount: Record<string, number> = {};
                         for (let x = 0; x < img.getWidth(); x++) {
                             for (let y = 0; y < img.getHeight(); y++) {
                                 const {r, g, b, a} = Jimp.intToRGBA(img.getPixelColor(x, y));
                                 const color256 = [r, g, b].map(x => x * (a/255) + 255 * (1-a/255));
                                 const color16 = color256.map(x => Math.round(x / 255 * 15));
-                                colorFreq[JSON.stringify(color16)] = (colorFreq[JSON.stringify(color16)] ?? 0) + 1;
+                                colorCount[JSON.stringify(color16)] = (colorCount[JSON.stringify(color16)] ?? 0) + 1;
                             }
                         }
-                        const rgb16 = Object.entries(colorFreq).map(kv => {
-                            const [k, freq] = kv;
+                        const rgb16 = Object.entries(colorCount).map(kv => {
+                            const [k, count] = kv;
                             const [r, g, b]: number[] = JSON.parse(k);
-                            return {color16: [r, g, b], weight: (/* chroma */ Math.max(r, g, b) - Math.min(r, g, b)) * Math.log2(freq)};
+                            return {color16: [r, g, b], weight: (/* chroma */ Math.max(r, g, b) - Math.min(r, g, b)) * count};
                         }).sort((a, b) => a.weight - b.weight).reverse()[0].color16;
                         const lab = rgb2lab(rgb16.map(x => x / 15 * 255));
                         return Object.entries(colors).sort(
