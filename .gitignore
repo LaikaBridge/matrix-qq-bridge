@@ -2,3 +2,5 @@ build
 *.db
 node_modules
 .direnv
+dump.rdb
+.vscode

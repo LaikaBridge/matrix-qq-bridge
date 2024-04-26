@@ -1,15 +1,15 @@
 import { readFileSync } from "fs";
 import YAML from "yaml";
-interface MiraiConfig {
+export interface MiraiConfig {
     host: string;
     verifyKey: string;
     qq: number;
 }
-interface MatrixRegistration {
+export interface MatrixRegistration {
     path: string;
     localpart: string;
 }
-interface MatrixConfig {
+export interface MatrixConfig {
     homeserver: string;
     domain: string;
     listenIP: string;
@@ -18,33 +18,29 @@ interface MatrixConfig {
     namePrefix: string;
 }
 
-interface PuppetCustomization {
+export interface PuppetCustomization {
     adminName: string;
     adminAvatar: string;
     customizationVersion: number;
 }
-interface GroupBridgeRule {
+export interface GroupBridgeRule {
     mx: string;
     qq: number;
 }
-interface SocksProxyConfig {
-    enable: boolean;
-    url: string;
-}
-interface RembgConfig {
+export interface SocksProxyConfig {
     enable: boolean;
     url: string;
 }
 
-interface RedisConfig {
+export interface RedisConfig {
     connString: string;
     namespace: string;
 }
-interface DBConfig {
+export interface DBConfig {
     path: string;
 }
 
-interface Config {
+export interface Config {
     mirai: MiraiConfig;
     matrix: MatrixConfig;
     bridgedGroups: GroupBridgeRule[];
@@ -52,7 +48,6 @@ interface Config {
     puppetCustomization: PuppetCustomization;
     redisConfig: RedisConfig;
     dbConfig: DBConfig;
-    //    rembgService: RembgConfig
 }
 
 export function readConfig(): Config {

@@ -1,14 +1,18 @@
 {
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
-
-  outputs = { self, nixpkgs }: {
-    devShells.x86_64-linux.default = let pkgs = import nixpkgs {system = "x86_64-linux"; }; in pkgs.mkShell{
-        buildInputs = [pkgs.nodejs_21 pkgs.bashInteractive ];
-        nativeBuildInputs = [pkgs.biome];
+  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      flake = { };
+      systems = [ "x86_64-linux" ];
+      perSystem = { config, pkgs, ... }: {
+        devShells.default = pkgs.mkShell {
+          buildInputs = [ pkgs.nodejs_21 ];
+          nativeBuildInputs = [ pkgs.biome pkgs.redis pkgs.bashInteractive ];
+        };
+        formatter = pkgs.nixfmt-rfc-style;
+      };
     };
-
-  };
 }
