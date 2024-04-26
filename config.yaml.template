@@ -21,7 +21,17 @@ bridgedGroups:
 socksProxy:
     enable: false
     url: socks://127.0.0.1:8003
+# Puppet Admin customization on Matrix side.
 puppetCustomization:
     customizationVersion: 1
     adminName: 小火龙
     adminAvatar: mxc://mozilla.org/4a6de5a3ca9bb4f4c1d2f7a4478f635643e982361728112230710378496
+# Redis config
+# Redis serves as bridge between brokers and main daemon.
+redisConfig:
+    connString: "redis://127.0.0.1/"
+    namespace: "matrix-qq-bridge"
+# SQLite 3 config
+# Persistence storage by main daemon.
+dbConfig:
+    path: ./database.db

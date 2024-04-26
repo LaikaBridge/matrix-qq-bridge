@@ -3,13 +3,16 @@
     "organizeImports": {
         "enabled": true
     },
+    "files": {
+        "include": ["src/**/*.ts"]
+    },
     "formatter": {
-        "indentSize": 4,
+        "indentWidth": 4,
         "indentStyle": "space"
     },
     "javascript": {
         "formatter": {
-            "quoteStyle": "single"
+            "quoteStyle": "double"
         }
     },
     "linter": {
