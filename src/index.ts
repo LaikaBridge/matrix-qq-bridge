@@ -17,7 +17,7 @@ import { SocksProxyAgent } from "socks-proxy-agent";
 import { MatrixProfileInfo } from "matrix-bot-sdk";
 import throttledQueue from "throttled-queue";
 import { TextNode, HTMLElement, Node, parse } from "node-html-parser";
-import { escape, unescape } from "html-escaper";
+import { escape } from "html-escaper";
 import { sampleColor } from "./utils/sampleColor";
 
 const { Plain, At, Image } = Mirai.MessageComponent;

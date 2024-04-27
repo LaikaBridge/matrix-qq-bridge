@@ -4,3 +4,4 @@ node_modules
 .direnv
 dump.rdb
 .vscode
+.pre-commit-config.yaml
