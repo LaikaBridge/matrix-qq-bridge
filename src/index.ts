@@ -1,23 +1,23 @@
-import Mirai, { GroupTarget, MessageChain } from "node-mirai-sdk";
-import {
-    Cli,
-    Bridge,
-    AppServiceRegistration,
-    MembershipCache,
-    Intent,
-    UserMembership,
-    PowerLevelContent,
-} from "matrix-appservice-bridge";
-import fetch from "node-fetch";
-import { LocalStorage } from "node-localstorage";
 import http from "node:http";
 import https from "node:https";
-import { readConfig } from "./config";
-import { SocksProxyAgent } from "socks-proxy-agent";
-import { MatrixProfileInfo } from "matrix-bot-sdk";
-import throttledQueue from "throttled-queue";
-import { TextNode, HTMLElement, Node, parse } from "node-html-parser";
 import { escape } from "html-escaper";
+import {
+    AppServiceRegistration,
+    Bridge,
+    Cli,
+    type Intent,
+    MembershipCache,
+    type PowerLevelContent,
+    type UserMembership,
+} from "matrix-appservice-bridge";
+import type { MatrixProfileInfo } from "matrix-bot-sdk";
+import fetch from "node-fetch";
+import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
+import { LocalStorage } from "node-localstorage";
+import Mirai, { type GroupTarget, type MessageChain } from "node-mirai-sdk";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import throttledQueue from "throttled-queue";
+import { readConfig } from "./config";
 import { sampleColor } from "./utils/sampleColor";
 
 const { Plain, At, Image } = Mirai.MessageComponent;
@@ -176,7 +176,7 @@ class PersistentIntentBackingStore {
         this.storePowerLevelContent(roomId, content);
     }
 }
-const INTENT_MEMBERSHIP_STORE = (function () {
+const INTENT_MEMBERSHIP_STORE = (() => {
     const store = new PersistentIntentBackingStore();
     return {
         getMembership: store.getMembership.bind(store),
@@ -193,7 +193,7 @@ const matrixPuppetId = (id: string | number) =>
     `@${config.matrix.namePrefix}_qq_${id}:${config.matrix.domain}`;
 new Cli({
     registrationPath: config.matrix.registration.path,
-    generateRegistration: function (reg, callback) {
+    generateRegistration: (reg, callback) => {
         const regConfig = config.matrix.registration;
         reg.setId(AppServiceRegistration.generateToken());
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
@@ -202,7 +202,7 @@ new Cli({
         reg.addRegexPattern("users", `@${config.matrix.namePrefix}_.*`, true);
         callback(reg);
     },
-    run: function (port, config_) {
+    run: (port, config_) => {
         const cache = new MembershipCache();
         const prev_name_dict: Record<
             string,
@@ -223,11 +223,11 @@ new Cli({
                 },
             },
             controller: {
-                onUserQuery: function (queriedUser) {
+                onUserQuery: (queriedUser) => {
                     return {}; // auto-provision users with no additonal data
                 },
 
-                onEvent: async function (request, context) {
+                onEvent: async (request, context) => {
                     const event = request.getData();
                     if (event.origin_server_ts < launch_date.getTime()) {
                         console.warn("Ignoring event ", event.event_id);
@@ -238,7 +238,7 @@ new Cli({
                     const room_id = event.room_id;
                     const qq_id = findQQByMx(room_id);
                     if (qq_id === null) return;
-                    let user_id = event.sender;
+                    const user_id = event.sender;
                     let name = user_id;
                     let avatar = "";
                     const intent = bridge.getIntent(matrixAdminId);
@@ -339,7 +339,7 @@ new Cli({
                     }
                     function htmlToMsgChain(s: string): MessageChain[] {
                         const html = parse(s);
-                        let chain: MessageChain[] = [Plain(`${name}: `)];
+                        const chain: MessageChain[] = [Plain(`${name}: `)];
                         if (
                             html.firstChild instanceof HTMLElement &&
                             html.firstChild?.tagName == "MX-REPLY"
@@ -354,14 +354,16 @@ new Cli({
                                         "https://matrix.to/#/@",
                                     )
                                 ) {
-                                    let user_id = node.attributes.href.slice(
+                                    const user_id = node.attributes.href.slice(
                                         "https://matrix.to/#/".length,
                                     );
-                                    let match = user_id.match(
+                                    const match = user_id.match(
                                         new RegExp(matrixPuppetId("(\\d+)")),
                                     );
                                     if (match != null) {
-                                        let qq: number = parseInt(match[1]);
+                                        const qq: number = Number.parseInt(
+                                            match[1],
+                                        );
                                         chain.push(At(qq));
                                     } else {
                                         chain.push(Plain("@" + node.text));
@@ -624,7 +626,7 @@ new Cli({
                     message;
                 let msg = "";
                 let formatted = "";
-                let images: string[] = [];
+                const images: string[] = [];
                 console.log(messageChain);
                 let quoted: string | null = null;
                 let source: string | null = null;
@@ -785,7 +787,7 @@ new Cli({
                 console.log("Member after", member2);
                 console.log("uploaded");
                 if (msg) {
-                    let data: any = {
+                    const data: any = {
                         body: msg,
                         format: "org.matrix.custom.html",
                         formatted_body: formatted,

@@ -5,3 +5,4 @@ node_modules
 dump.rdb
 .vscode
 .pre-commit-config.yaml
+result

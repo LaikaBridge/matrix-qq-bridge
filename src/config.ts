@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import YAML from "yaml";
 export interface MiraiConfig {
     host: string;

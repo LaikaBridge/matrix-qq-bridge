@@ -1,4 +1,14 @@
-import { ErrorReply, RedisClientType } from "redis";
+import { ErrorReply, type RedisClientType } from "redis";
+import { createLogger } from "../log";
+
+const logger = createLogger(module);
+
+export class InterruptedError extends Error {
+    constructor() {
+        super("Redis client Interrupted!");
+        Object.setPrototypeOf(this, InterruptedError.prototype);
+    }
+}
 
 const CONSUMER_GROUP = "consumers";
 const CONSUMER_NAME = "consumer";
@@ -45,7 +55,7 @@ export class Consumer<T> {
         } catch (e: unknown) {
             if (e instanceof ErrorReply) {
                 if (e.message.includes("BUSYGROUP")) {
-                    console.log("Consumer group already created.");
+                    logger.debug("Consumer group already created.");
                 }
             } else {
                 // rethrow exception
@@ -65,8 +75,8 @@ export class Consumer<T> {
     private parse(a: string): T {
         return JSON.parse(a) as T;
     }
-    private pendingFinished: boolean = false;
-    lastPendingId: string = "0-0";
+    private pendingFinished = false;
+    lastPendingId = "0-0";
     private async populatePendingMessages() {
         if (this.pendingFinished) {
             throw new Error("Pending already finished!");
@@ -86,12 +96,11 @@ export class Consumer<T> {
         this.pending = pending.map((x) => x.id).toReversed();
         // all pending items are populated.
         if (this.pending.length === 0) {
-            console.log("All pending terms loaded.");
+            logger.debug("All pending terms loaded.");
             this.pendingFinished = true;
             return;
-        }else{
-            this.lastPendingId = this.pending[0];
         }
+        this.lastPendingId = this.pending[0];
     }
     private async loadMessages() {
         if (!this.pendingFinished) {
@@ -101,18 +110,24 @@ export class Consumer<T> {
             throw new Error("Loaded queue is not empty.");
         }
         // read some from queue.
-        const messages = await this.client.xReadGroup(
-            CONSUMER_GROUP,
-            CONSUMER_NAME,
-            {
-                key: this.stream,
-                id: ">",
-            },
-            {
-                COUNT: MAX_QUEUE_SIZE,
-                BLOCK: 0,
-            },
-        );
+        const messages = await (async () => {
+            try {
+                return await this.client.xReadGroup(
+                    CONSUMER_GROUP,
+                    CONSUMER_NAME,
+                    {
+                        key: this.stream,
+                        id: ">",
+                    },
+                    {
+                        COUNT: MAX_QUEUE_SIZE,
+                        BLOCK: 0,
+                    },
+                );
+            } catch (e: unknown) {
+                throw new InterruptedError();
+            }
+        })();
         if (messages === null) {
             throw new Error("XREADGROUP early return with BLOCK=0.");
         }
@@ -134,37 +149,38 @@ export class Consumer<T> {
     // Exported interfaces.
     async next(): Promise<Entry<T>> {
         await this.init();
-        if (this.loaded.length !== 0) {
-            return this.loaded.pop()!;
+        const last = this.loaded.pop();
+        if (last) {
+            return last;
         }
+
         // No loaded.
         while (this.pending.length !== 0) {
-            //console.log(this.pending, this.pendingFinished);
+            //logger.debug(this.pending, this.pendingFinished);
             const next_pending = this.pending.pop()!;
-            
+
             if (this.pending.length === 0 && !this.pendingFinished) {
                 await this.populatePendingMessages();
             }
             const next_data = await this.readWithId(next_pending);
             if (next_data) {
-                this.loaded.push(next_data);
-                return this.loaded.pop()!;
-            } else {
-                console.log(`ID ${next_pending} not found. May have expired.`);
+                return next_data;
             }
+            logger.debug(`ID ${next_pending} not found. May have expired.`);
         }
         // Pending is also empty.
         await this.loadMessages();
-        const top = this.loaded.pop()!;
+        const top = this.loaded.pop();
         if (!top) {
-            throw new Error("No more messages, but we should block!");
+            throw new InterruptedError();
+            //throw new Error("No more messages, but we should block!");
         }
         return top;
     }
     async commit(id: string) {
         await this.init();
         const value = await this.client.XACK(this.stream, CONSUMER_GROUP, id);
-        if (value != 1) {
+        if (value !== 1) {
             throw new Error(`Failed to commit ${id}`);
         }
     }

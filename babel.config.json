@@ -1,0 +1,16 @@
+{
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "current"
+          },
+          "useBuiltIns": "usage",
+          "corejs": "3.37.0"
+        }
+      ],
+      "@babel/preset-typescript"
+    ],
+    "sourceMaps": true
+}
