@@ -1,11 +1,11 @@
-import { describe, expect, test } from "@jest/globals";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { type RedisClientType, createClient } from "redis";
 import { Consumer, Producer } from "../../src/broker/messageQueue";
 
 import crypto from "node:crypto";
 
 import { createLogger } from "../../src/log";
-const logger = createLogger(module);
+const logger = createLogger(import.meta);
 
 function generateRandomString(length: number): string {
     const randomBytes = crypto.randomBytes(length);

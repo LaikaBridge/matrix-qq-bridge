@@ -1,17 +1,16 @@
-import { ClientKillFilters } from "@redis/client/dist/lib/commands/CLIENT_KILL";
-import { MessageComponent as MiraiMsg } from "node-mirai-sdk";
-import type { EventMap } from "node-mirai-sdk/types/src/events";
+import type { ClientKillFilters } from "@redis/client/dist/lib/commands/CLIENT_KILL.d.ts";
+import NodeMirai from "node-mirai-sdk";
+const { MessageComponent: MiraiMsg } = NodeMirai;
+import type { EventMap } from "node-mirai-sdk/types/src/events.d.ts";
 import type {
     ForwardNode,
     ForwardNodeList,
     GroupSender,
     message,
-} from "node-mirai-sdk/types/src/typedef";
-/* eslint-disable @typescript-eslint/no-unused-vars */
+} from "node-mirai-sdk/types/src/typedef.d.ts";
 import { type RedisClientType, createClient } from "redis";
-import throttledQueue from "throttled-queue";
-import { type Config, readConfig } from "../config";
-import { createLogger } from "../log";
+import { type Config, readConfig } from "../config.ts";
+import { createLogger } from "../log.ts";
 import type {
     ForwardedMessageLine,
     IncomingMessage,
@@ -20,15 +19,16 @@ import type {
     MessageBlock,
     MessageId,
     Quote,
-} from "../model/qq/incoming";
-import type { OutgoingMessage } from "../model/qq/outgoing";
-import { Consumer, InterruptedError, Producer } from "./messageQueue";
+} from "../model/qq/incoming.ts";
+import type { OutgoingMessage } from "../model/qq/outgoing.ts";
+import { Consumer, InterruptedError, Producer } from "./messageQueue.ts";
+import throttledQueue from "./throttledQueue";
 
 import Mirai, { type GroupTarget, type MessageChain } from "node-mirai-sdk";
 import * as wtf from "wtfnode";
-import { AsyncTaskQueue } from "./asyncTaskQueue";
+import { AsyncTaskQueue } from "./asyncTaskQueue.ts";
 
-const logger = createLogger(module);
+const logger = createLogger(import.meta);
 
 export class QQBroker {
     outgoingQueue: Consumer<OutgoingMessage>;

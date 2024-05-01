@@ -1,6 +1,7 @@
 import { Queue } from "data-structure-typed";
-import { createLogger } from "../log";
-const logger = createLogger(module);
+import { createLogger } from "../log.ts";
+import { withResolvers } from "../ponyfill/promise.ts";
+const logger = createLogger(import.meta);
 
 type Entry<T> = [cond: Promise<T>, then: (ret: T) => Promise<void>];
 export class AsyncTaskQueue {
@@ -17,7 +18,7 @@ export class AsyncTaskQueue {
     }
     enroll(): [ready: Promise<void>, commit: () => void] {
         const { promise: commitPromise, resolve: commit } =
-            Promise.withResolvers<void>();
+            withResolvers<void>();
         const queuePromise = new Promise<void>((resolve) => {
             this.enqueue(async () => {
                 resolve(void 0);

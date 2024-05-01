@@ -1,11 +1,11 @@
 import { parseArgs } from "node:util";
 import { type RedisClientType, createClient } from "redis";
-import { Producer } from "../broker/messageQueue";
-import { readConfig } from "../config";
-import { createLogger } from "../log";
-import type { OutgoingMessage } from "../model/qq/outgoing";
+import { Producer } from "../broker/messageQueue.ts";
+import { readConfig } from "../config.ts";
+import { createLogger } from "../log.ts";
+import type { OutgoingMessage } from "../model/qq/outgoing.ts";
 
-const logger = createLogger(module);
+const logger = createLogger(import.meta);
 
 (async () => {
     const config = readConfig();

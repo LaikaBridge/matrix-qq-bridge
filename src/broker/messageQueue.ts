@@ -1,7 +1,8 @@
 import { ErrorReply, type RedisClientType } from "redis";
-import { createLogger } from "../log";
+import { createLogger } from "../log.ts";
+import { toReversed } from "../ponyfill/array.ts";
 
-const logger = createLogger(module);
+const logger = createLogger(import.meta);
 
 export class InterruptedError extends Error {
     constructor() {
@@ -93,7 +94,7 @@ export class Consumer<T> {
             MAX_QUEUE_SIZE,
             { consumer: CONSUMER_NAME },
         );
-        this.pending = pending.map((x) => x.id).toReversed();
+        this.pending = toReversed(pending.map((x) => x.id));
         // all pending items are populated.
         if (this.pending.length === 0) {
             logger.debug("All pending terms loaded.");
@@ -131,9 +132,11 @@ export class Consumer<T> {
         if (messages === null) {
             throw new Error("XREADGROUP early return with BLOCK=0.");
         }
-        this.loaded = messages[0].messages
-            .map((x) => [x.id, this.parse(x.message[DATA_KEY])] as Entry<T>)
-            .toReversed();
+        this.loaded = toReversed(
+            messages[0].messages.map(
+                (x) => [x.id, this.parse(x.message[DATA_KEY])] as Entry<T>,
+            ),
+        );
     }
     private async readWithId(id: string): Promise<Entry<T> | null> {
         const result = await this.client.xRange(this.stream, id, id, {

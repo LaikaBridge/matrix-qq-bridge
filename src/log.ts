@@ -20,10 +20,15 @@ export const mainLogger = winston.createLogger({
     ],
 });
 
-export const createLogger = (base: string | NodeModule) => {
+export const createLogger = (
+    base: string | NodeModule | ImportMeta = "unknown",
+) => {
     let label: string;
     if (typeof base === "string") {
         label = base;
+    } else if ("url" in base) {
+        const parts = base.url.split("/");
+        label = `${parts[parts.length - 2]}/${parts.pop()}`;
     } else {
         const parts = base.filename.split("/");
         label = `${parts[parts.length - 2]}/${parts.pop()}`;
