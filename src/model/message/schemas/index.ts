@@ -8,3 +8,5 @@ export interface MessageSchema {
 const schemas = [schemaV1];
 
 export default schemas;
+
+export const latestSchema = schemas[schemas.length - 1];

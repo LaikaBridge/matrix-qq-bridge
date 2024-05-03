@@ -1,2 +1,2 @@
-import { Producer } from "./messageQueue";
+import { Producer } from "../utils/messageQueue";
 export class MatrixBroker {}

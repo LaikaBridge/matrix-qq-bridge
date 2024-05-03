@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { type RedisClientType, createClient } from "redis";
-import { Consumer, Producer } from "../../src/broker/messageQueue";
+import { Consumer, Producer } from "../../src/utils/messageQueue";
 
 import crypto from "node:crypto";
 
-import { createLogger } from "../../src/log";
+import { createLogger } from "../../src/utils/log";
 const logger = createLogger(import.meta);
 
 function generateRandomString(length: number): string {

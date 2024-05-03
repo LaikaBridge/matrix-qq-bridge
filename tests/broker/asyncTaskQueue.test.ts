@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
-import { AsyncTaskQueue } from "../../src/broker/asyncTaskQueue";
-import { createLogger } from "../../src/log";
+import { AsyncTaskQueue } from "../../src/utils/asyncTaskQueue";
+import { createLogger } from "../../src/utils/log";
 const logger = createLogger(import.meta);
 
 describe("AsyncTaskQueue test", () => {

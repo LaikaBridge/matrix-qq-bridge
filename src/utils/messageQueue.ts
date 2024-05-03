@@ -1,6 +1,6 @@
 import { ErrorReply, type RedisClientType } from "redis";
-import { createLogger } from "../log.ts";
 import { toReversed } from "../ponyfill/array.ts";
+import { createLogger } from "./log.ts";
 
 const logger = createLogger(import.meta);
 
@@ -21,26 +21,43 @@ export const MAX_QUEUE_SIZE = 10;
  */
 export type Entry<T> = [id: string, data: T];
 export class Producer<T> {
+    async connect() {
+        await this.client.connect();
+    }
+    async terminate() {
+        await this.client.disconnect();
+    }
     private client: RedisClientType;
     private stream: string;
     constructor(redis: RedisClientType, stream: string) {
-        this.client = redis;
+        this.client = redis.duplicate();
         this.stream = stream;
     }
     async push(data: T): Promise<string> {
         const id = await this.client.xAdd(this.stream, "*", {
             [DATA_KEY]: JSON.stringify(data),
         });
+        logger.debug(`Pushed ${id}`);
         return id;
     }
 }
 export class Consumer<T> {
-    private client: RedisClientType;
+    async connect() {
+        await this.blockingClient.connect();
+        await this.nonblockingClient.connect();
+    }
+    async terminate() {
+        await this.blockingClient.disconnect();
+        await this.nonblockingClient.disconnect();
+    }
+    private blockingClient: RedisClientType;
+    private nonblockingClient: RedisClientType;
     private stream: string;
     pending: string[] = [];
     loaded: Entry<T>[] = [];
     constructor(redis: RedisClientType, stream: string) {
-        this.client = redis;
+        this.blockingClient = redis.duplicate();
+        this.nonblockingClient = redis.duplicate();
         this.stream = stream;
     }
     private initialized = false;
@@ -50,9 +67,14 @@ export class Consumer<T> {
         }
         // create group
         try {
-            await this.client.xGroupCreate(this.stream, CONSUMER_GROUP, "0-0", {
-                MKSTREAM: true,
-            });
+            await this.nonblockingClient.xGroupCreate(
+                this.stream,
+                CONSUMER_GROUP,
+                "0-0",
+                {
+                    MKSTREAM: true,
+                },
+            );
         } catch (e: unknown) {
             if (e instanceof ErrorReply) {
                 if (e.message.includes("BUSYGROUP")) {
@@ -64,7 +86,7 @@ export class Consumer<T> {
             }
         }
         // create consumer
-        await this.client.xGroupCreateConsumer(
+        await this.nonblockingClient.xGroupCreateConsumer(
             this.stream,
             CONSUMER_GROUP,
             CONSUMER_NAME,
@@ -86,7 +108,7 @@ export class Consumer<T> {
         if (this.pending.length !== 0) {
             throw new Error("Pending queue is not empty.");
         }
-        const pending = await this.client.xPendingRange(
+        const pending = await this.nonblockingClient.xPendingRange(
             this.stream,
             CONSUMER_GROUP,
             `(${this.lastPendingId}`,
@@ -113,7 +135,7 @@ export class Consumer<T> {
         // read some from queue.
         const messages = await (async () => {
             try {
-                return await this.client.xReadGroup(
+                return await this.blockingClient.xReadGroup(
                     CONSUMER_GROUP,
                     CONSUMER_NAME,
                     {
@@ -139,9 +161,14 @@ export class Consumer<T> {
         );
     }
     private async readWithId(id: string): Promise<Entry<T> | null> {
-        const result = await this.client.xRange(this.stream, id, id, {
-            COUNT: 1,
-        });
+        const result = await this.nonblockingClient.xRange(
+            this.stream,
+            id,
+            id,
+            {
+                COUNT: 1,
+            },
+        );
         if (result.length === 0) {
             return null;
         }
@@ -182,9 +209,22 @@ export class Consumer<T> {
     }
     async commit(id: string) {
         await this.init();
-        const value = await this.client.XACK(this.stream, CONSUMER_GROUP, id);
+        const value = await this.nonblockingClient.XACK(
+            this.stream,
+            CONSUMER_GROUP,
+            id,
+        );
         if (value !== 1) {
             throw new Error(`Failed to commit ${id}`);
         }
+    }
+    async nextWithCommit() {
+        const [id, val] = await this.next();
+        return [
+            val,
+            () => {
+                return this.commit(id);
+            },
+        ] as const;
     }
 }

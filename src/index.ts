@@ -17,7 +17,7 @@ import { LocalStorage } from "node-localstorage";
 import Mirai, { type GroupTarget, type MessageChain } from "node-mirai-sdk";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
-import { readConfig } from "./config";
+import { readConfig } from "./utils/config";
 import { sampleColor } from "./utils/sampleColor";
 
 const { Plain, At, Image } = Mirai.MessageComponent;

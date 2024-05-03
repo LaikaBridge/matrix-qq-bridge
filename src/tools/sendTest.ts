@@ -1,9 +1,11 @@
 import { parseArgs } from "node:util";
+import { uuidV4 } from "data-structure-typed";
 import { type RedisClientType, createClient } from "redis";
-import { Producer } from "../broker/messageQueue.ts";
-import { readConfig } from "../config.ts";
-import { createLogger } from "../log.ts";
 import type { OutgoingMessage } from "../model/qq/outgoing.ts";
+import type { Task, TaskResponse } from "../model/qq/tasks.ts";
+import { readConfig } from "../utils/config.ts";
+import { createLogger } from "../utils/log.ts";
+import { Consumer, Producer } from "../utils/messageQueue.ts";
 
 const logger = createLogger(import.meta);
 
@@ -12,11 +14,21 @@ const logger = createLogger(import.meta);
     const redisClient = (await createClient({
         url: config.redisConfig.connString,
     })) as RedisClientType;
-    await redisClient.connect();
     const outgoingQueue = new Producer<OutgoingMessage>(
-        redisClient,
-        `${config.redisConfig.namespace}-qqOutgoingQueue`,
+        redisClient.duplicate(),
+        config.redisNames.QQ_OUTGOING_QUEUE,
     );
+    const taskQueue = new Producer<Task>(
+        redisClient.duplicate(),
+        config.redisNames.QQ_TASK_QUEUE,
+    );
+    const taskResponseQueue = new Consumer<TaskResponse>(
+        redisClient.duplicate(),
+        config.redisNames.QQ_TASK_RESPONSE_QUEUE,
+    );
+    await outgoingQueue.connect();
+    await taskQueue.connect();
+    await taskResponseQueue.connect();
     const args = parseArgs({
         options: {
             group: {
@@ -40,8 +52,11 @@ const logger = createLogger(import.meta);
         logger.error("Invalid number of positionals");
         process.exit(1);
     }
+    const uuid = uuidV4();
+    logger.info(`Randomly generating message ID: ${uuid}`);
     await outgoingQueue.push({
         metadata: {
+            uuid,
             group: groupId,
         },
         components: [{ type: "text", data: args.positionals[0] }],

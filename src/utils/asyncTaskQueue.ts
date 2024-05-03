@@ -1,6 +1,6 @@
 import { Queue } from "data-structure-typed";
-import { createLogger } from "../log.ts";
 import { withResolvers } from "../ponyfill/promise.ts";
+import { createLogger } from "./log.ts";
 const logger = createLogger(import.meta);
 
 type Entry<T> = [cond: Promise<T>, then: (ret: T) => Promise<void>];

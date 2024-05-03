@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
+import { initializeFileStorage } from "./mime";
 export interface MiraiConfig {
     host: string;
     verifyKey: string;
@@ -40,7 +41,7 @@ export interface DBConfig {
     path: string;
 }
 
-export interface Config {
+export interface ConfigFile {
     mirai: MiraiConfig;
     matrix: MatrixConfig;
     bridgedGroups: GroupBridgeRule[];
@@ -50,8 +51,27 @@ export interface Config {
     dbConfig: DBConfig;
 }
 
-export function readConfig(): Config {
+export function readConfig() {
+    initializeFileStorage();
     const file = readFileSync("config.yaml", "utf-8");
-    const config = YAML.parse(file);
-    return config;
+    const config: ConfigFile = YAML.parse(file);
+    return Object.assign(
+        {},
+        {
+            redisNames: {
+                QQ_OUTGOING_QUEUE: `${config.redisConfig.namespace}-qqOutgoingQueue`,
+                QQ_INCOMING_QUEUE: `${config.redisConfig.namespace}-qqIncomingQueue`,
+                MATRIX_OUTGOING_QUEUE: `${config.redisConfig.namespace}-matrixOutgoingQueue`,
+                MATRIX_INCOMING_QUEUE: `${config.redisConfig.namespace}-matrixIncomingQueue`,
+
+                QQ_TASK_QUEUE: `${config.redisConfig.namespace}-qqTaskQueue`,
+                QQ_TASK_RESPONSE_QUEUE: `${config.redisConfig.namespace}-qqTaskResponseQueue`,
+                MATRIX_TASK_QUEUE: `${config.redisConfig.namespace}-matrixTaskQueue`,
+                MATRIX_TASK_RESPONSE_QUEUE: `${config.redisConfig.namespace}-matrixTaskResponseQueue`,
+            } as const,
+        },
+        config,
+    );
 }
+
+export type Config = ReturnType<typeof readConfig>;

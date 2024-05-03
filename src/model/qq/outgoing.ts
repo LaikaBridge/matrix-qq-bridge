@@ -1,6 +1,9 @@
+import type { MimedFilePath } from "../../utils/mime";
+
 export interface OutgoingMetadata {
     group: number;
     quoting?: number;
+    uuid: string;
 }
 
 export type OutgoingMessageComponent =
@@ -10,8 +13,7 @@ export type OutgoingMessageComponent =
       }
     | {
           type: "image";
-          mime: string;
-          url: string;
+          imageId: string;
       }
     | {
           type: "at";

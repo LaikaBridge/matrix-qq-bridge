@@ -1,11 +1,11 @@
-import { type Config, readConfig } from "../../config.ts";
+import { type Config, readConfig } from "../../utils/config.ts";
 
 import { existsSync } from "node:fs";
 import Sequelize, { sql } from "@sequelize/core";
 import { SqliteDialect } from "@sequelize/sqlite3";
 
-import { createLogger } from "../../log.ts";
-import schemas from "./schemas";
+import { createLogger } from "../../utils/log.ts";
+import { latestSchema, default as schemas } from "./schemas";
 const logger = createLogger(import.meta);
 
 const DATABASE_VERSION = schemas.length;
@@ -92,8 +92,7 @@ export class Database {
         }
         logger.info("Loading latest schema.");
         this.database.removeAllModels();
-        const currentSchema = schemas[DATABASE_VERSION - 1];
-        this.database.addModels(currentSchema.models());
+        this.database.addModels(latestSchema.models());
     }
 
     static async open(config: Config): Promise<Database> {

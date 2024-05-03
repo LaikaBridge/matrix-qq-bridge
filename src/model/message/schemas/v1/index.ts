@@ -1,12 +1,12 @@
 import type { ModelStatic } from "@sequelize/core";
 import type { MessageSchema } from "..";
-import { createLogger } from "../../../../log.ts";
-import { User } from "./message";
+import { createLogger } from "../../../../utils/log.ts";
+import schemas from "./message";
 const logger = createLogger(import.meta);
 
 const schema: MessageSchema = {
     models(): ModelStatic[] {
-        return [User];
+        return schemas;
     },
     async migrate(db) {
         logger.info("Creating schema for v1");

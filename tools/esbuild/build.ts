@@ -1,7 +1,8 @@
 import * as esbuild from 'esbuild'
 import {buildOptions} from "./config"
 await esbuild.build(Object.assign({}, {
-  entryPoints: ['src/broker/QQBroker.ts', 'src/broker/MatrixBroker.ts'],
+  entryPoints: ['src/bin/*.ts', 'src/tools/*.ts'],
   outdir: 'build/',
-  splitting: true
+  splitting: true,
+  sourcemap: "inline",
 }, buildOptions))

@@ -1,6 +1,9 @@
 export interface MatrixMsgMeta {
     roomId: string;
     eventId: string;
+    uuid: string;
+    repliedId: string;
+    mentions: string[];
 }
 export type MatrixURL =
     | {

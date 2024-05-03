@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import { createLogger } from "../src/log";
+import { createLogger } from "../src/utils/log";
 const logger = createLogger(import.meta);
 
 describe("hello world by jest", () => {

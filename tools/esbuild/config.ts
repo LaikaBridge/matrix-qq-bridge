@@ -1,6 +1,6 @@
 import * as esbuild from 'esbuild'
 import { Plugin } from "esbuild";
-import {createLogger} from '../../src/log'
+import {createLogger} from '../../src/utils/log'
 const logger = createLogger(import.meta);
 
 // https://github.com/hyrious/esbuild-dev/blob/c8cc16251137d7ca3ed897921d89ab1528831996/src/utils.ts#L63

@@ -60,9 +60,11 @@ export type IncomingMessage =
           type: "message";
           metadata: IncomingMetadata;
           message: MessageBlock;
+          uuid: string;
       }
     | {
           type: "retract";
           group: number;
           retractedId: MessageId;
+          uuid: string;
       };

@@ -37,3 +37,9 @@ export const createLogger = (
         label,
     });
 };
+
+export type Logger = ReturnType<typeof createLogger>;
+
+export interface HasLogger {
+    logger: Logger;
+}
