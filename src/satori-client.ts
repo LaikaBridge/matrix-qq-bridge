@@ -47,7 +47,7 @@ export class MiraiSatoriAdaptor {
             if(!msg.event.guild){
                 return;
             }
-            if(msg.type==="message-created"){
+            if(msg.event.selfId === msg.event.user?.id){
                 return;
             }
             const msgchain = this.untranslateMessageChain(msg.event.message?.id ?? "UNMAPPED", msg.content??"");
