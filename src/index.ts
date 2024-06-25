@@ -1,30 +1,31 @@
-import Mirai, { GroupTarget, MessageChain } from 'node-mirai-sdk';
-import {
-    Cli,
-    Bridge,
-    AppServiceRegistration,
-    MembershipCache,
-    Intent,
-    UserMembership,
-    PowerLevelContent,
-} from 'matrix-appservice-bridge';
-import fetch from 'node-fetch';
-import { LocalStorage } from 'node-localstorage';
-import http from 'node:http';
-import https from 'node:https';
-import { readConfig } from './config';
-import { SocksProxyAgent } from 'socks-proxy-agent';
-import { MatrixProfileInfo } from 'matrix-bot-sdk';
-import throttledQueue from 'throttled-queue';
-import { TextNode, HTMLElement, Node, parse } from 'node-html-parser';
-import { escape, unescape } from 'html-escaper';
+import http from "node:http";
+import https from "node:https";
+import { escape, unescape } from "html-escaper";
 import Jimp from "jimp";
+import {
+    AppServiceRegistration,
+    Bridge,
+    Cli,
+    type Intent,
+    MembershipCache,
+    type PowerLevelContent,
+    type UserMembership,
+} from "matrix-appservice-bridge";
+import type { MatrixProfileInfo } from "matrix-bot-sdk";
+import fetch from "node-fetch";
+import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
+import { LocalStorage } from "node-localstorage";
+import Mirai, { type GroupTarget, type MessageChain } from "node-mirai-sdk";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import throttledQueue from "throttled-queue";
+import { readConfig } from "./config";
+import { MiraiSatoriAdaptor } from "./satori-client";
 
 const { Plain, At, Image } = Mirai.MessageComponent;
 
 const config = readConfig();
 
-const localStorage = new LocalStorage('./extra-storage.db');
+const localStorage = new LocalStorage("./extra-storage.db");
 
 const BOT_UPDATE_VERSION = 1;
 
@@ -41,18 +42,23 @@ const colors = {
 };
 
 //converse rgb to lab
-function rgb2lab(rgb: number[]): number[]{
-    let r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255, x, y, z;
-    r = (r > 0.04045) ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
-    g = (g > 0.04045) ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
-    b = (b > 0.04045) ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+function rgb2lab(rgb: number[]): number[] {
+    let r = rgb[0] / 255,
+        g = rgb[1] / 255,
+        b = rgb[2] / 255,
+        x,
+        y,
+        z;
+    r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+    g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+    b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
     x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
-    y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.00000;
+    y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.0;
     z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
-    x = (x > 0.008856) ? Math.pow(x, 1/3) : (7.787 * x) + 16/116;
-    y = (y > 0.008856) ? Math.pow(y, 1/3) : (7.787 * y) + 16/116;
-    z = (z > 0.008856) ? Math.pow(z, 1/3) : (7.787 * z) + 16/116;
-    return [(116 * y) - 16, 500 * (x - y), 200 * (y - z)]
+    x = x > 0.008856 ? Math.pow(x, 1 / 3) : 7.787 * x + 16 / 116;
+    y = y > 0.008856 ? Math.pow(y, 1 / 3) : 7.787 * y + 16 / 116;
+    z = z > 0.008856 ? Math.pow(z, 1 / 3) : 7.787 * z + 16 / 116;
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
 function cie94(labA: number[], labB: number[]) {
@@ -66,10 +72,13 @@ function cie94(labA: number[], labB: number[]) {
     deltaH = deltaH < 0 ? 0 : Math.sqrt(deltaH);
     var sc = 1.0 + 0.045 * c1;
     var sh = 1.0 + 0.015 * c1;
-    var deltaLKlsl = deltaL / (1.0);
-    var deltaCkcsc = deltaC / (sc);
-    var deltaHkhsh = deltaH / (sh);
-    var i = deltaLKlsl * deltaLKlsl + deltaCkcsc * deltaCkcsc + deltaHkhsh * deltaHkhsh;
+    var deltaLKlsl = deltaL / 1.0;
+    var deltaCkcsc = deltaC / sc;
+    var deltaHkhsh = deltaH / sh;
+    var i =
+        deltaLKlsl * deltaLKlsl +
+        deltaCkcsc * deltaCkcsc +
+        deltaHkhsh * deltaHkhsh;
     return i < 0 ? 0 : Math.sqrt(i);
 }
 
@@ -85,7 +94,7 @@ if (config.socksProxy.enable) {
         family: 4,
     });
     agent = (url: URL) => {
-        if (url.protocol.includes('https')) {
+        if (url.protocol.includes("https")) {
             return https_agent;
         } else {
             return http_agent;
@@ -95,7 +104,7 @@ if (config.socksProxy.enable) {
 
 const throttle = throttledQueue(1, 1000);
 
-const bot = new Mirai({
+const bot = new MiraiSatoriAdaptor({
     host: config.mirai.host,
     // mirai-api-http-2.x
     verifyKey: config.mirai.verifyKey,
@@ -105,13 +114,13 @@ const bot = new Mirai({
 });
 
 // auth 认证(*)
-bot.onSignal('authed', () => {
+bot.onSignal("authed", () => {
     console.log(`Authed with session key ${bot.sessionKey}`);
     bot.verify();
 });
 
 // session 校验回调
-bot.onSignal('verified', async () => {
+bot.onSignal("verified", async () => {
     console.log(`Verified with session key ${bot.sessionKey}`);
 
     // 获取好友列表，需要等待 session 校验之后 (verified) 才能调用 SDK 中的主动接口
@@ -130,7 +139,7 @@ declare type GroupSender = {
 };
 
 // 退出前向 mirai-http-api 发送释放指令(*)
-process.on('exit', () => {
+process.on("exit", () => {
     bot.release();
 });
 
@@ -221,7 +230,7 @@ class PersistentIntentBackingStore {
         this.storePowerLevelContent(roomId, content);
     }
 }
-const INTENT_MEMBERSHIP_STORE = (function () {
+const INTENT_MEMBERSHIP_STORE = (() => {
     const store = new PersistentIntentBackingStore();
     return {
         getMembership: store.getMembership.bind(store),
@@ -238,18 +247,21 @@ const matrixPuppetId = (id: string | number) =>
     `@${config.matrix.namePrefix}_qq_${id}:${config.matrix.domain}`;
 new Cli({
     registrationPath: config.matrix.registration.path,
-    generateRegistration: function (reg, callback) {
+    generateRegistration: (reg, callback) => {
         const regConfig = config.matrix.registration;
         reg.setId(AppServiceRegistration.generateToken());
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
         reg.setAppServiceToken(AppServiceRegistration.generateToken());
         reg.setSenderLocalpart(regConfig.localpart);
-        reg.addRegexPattern('users', `@${config.matrix.namePrefix}_.*`, true);
+        reg.addRegexPattern("users", `@${config.matrix.namePrefix}_.*`, true);
         callback(reg);
     },
-    run: function (port, config_) {
+    run: (port, config_) => {
         const cache = new MembershipCache();
-        const prev_name_dict: Record<string, Record<string, { name: string, avatar: string }>> = {}; // RoomId -> UserId -> RoomNick * RoomAvatar
+        const prev_name_dict: Record<
+            string,
+            Record<string, { name: string; avatar: string }>
+        > = {}; // RoomId -> UserId -> RoomNick * RoomAvatar
         // const prev_profile_dict: Record<string, { name: string, avatar: string }> = {}; // UserId -> UserNick * Avatar
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
@@ -265,14 +277,14 @@ new Cli({
                 },
             },
             controller: {
-                onUserQuery: function (queriedUser) {
+                onUserQuery: (queriedUser) => {
                     return {}; // auto-provision users with no additonal data
                 },
 
-                onEvent: async function (request, context) {
+                onEvent: async (request, context) => {
                     const event = request.getData();
                     if (event.origin_server_ts < launch_date.getTime()) {
-                        console.warn('Ignoring event ', event.event_id);
+                        console.warn("Ignoring event ", event.event_id);
                         return;
                     }
 
@@ -280,7 +292,7 @@ new Cli({
                     const room_id = event.room_id;
                     const qq_id = findQQByMx(room_id);
                     if (qq_id === null) return;
-                    let user_id = event.sender;
+                    const user_id = event.sender;
                     let name = user_id;
                     let avatar = "";
                     const intent = bridge.getIntent(matrixAdminId);
@@ -323,33 +335,51 @@ new Cli({
                     //         console.log(ex);
                     //     }
                     // }
-                    async function getAvatarByMxUrl(mxurl?: string): Promise<string> {
+                    async function getAvatarByMxUrl(
+                        mxurl?: string,
+                    ): Promise<string> {
                         if (!mxurl) return "";
-                        const url = intent.matrixClient.mxcToHttp(
-                            mxurl,
-                        );
+                        const url = intent.matrixClient.mxcToHttp(mxurl);
                         const req = await fetch(url);
                         const buffer = await req.arrayBuffer();
                         const img = await Jimp.read(Buffer.from(buffer));
-                        let colorCount: Record<string, number> = {};
+                        const colorCount: Record<string, number> = {};
                         for (let x = 0; x < img.getWidth(); x++) {
                             for (let y = 0; y < img.getHeight(); y++) {
-                                const {r, g, b, a} = Jimp.intToRGBA(img.getPixelColor(x, y));
-                                const color256 = [r, g, b].map(x => x * (a/255) + 255 * (1-a/255));
-                                const color16 = color256.map(x => Math.round(x / 255 * 15));
-                                colorCount[JSON.stringify(color16)] = (colorCount[JSON.stringify(color16)] ?? 0) + 1;
+                                const { r, g, b, a } = Jimp.intToRGBA(
+                                    img.getPixelColor(x, y),
+                                );
+                                const color256 = [r, g, b].map(
+                                    (x) => x * (a / 255) + 255 * (1 - a / 255),
+                                );
+                                const color16 = color256.map((x) =>
+                                    Math.round((x / 255) * 15),
+                                );
+                                colorCount[JSON.stringify(color16)] =
+                                    (colorCount[JSON.stringify(color16)] ?? 0) +
+                                    1;
                             }
                         }
-                        const rgb16 = Object.entries(colorCount).map(kv => {
-                            const [k, count] = kv;
-                            const [r, g, b]: number[] = JSON.parse(k);
-                            return {color16: [r, g, b], weight: (/* chroma */ Math.max(r, g, b) - Math.min(r, g, b)) * count};
-                        }).sort((a, b) => a.weight - b.weight).reverse()[0].color16;
-                        const lab = rgb2lab(rgb16.map(x => x / 15 * 255));
+                        const rgb16 = Object.entries(colorCount)
+                            .map((kv) => {
+                                const [k, count] = kv;
+                                const [r, g, b]: number[] = JSON.parse(k);
+                                return {
+                                    color16: [r, g, b],
+                                    weight:
+                                        /* chroma */ (Math.max(r, g, b) -
+                                            Math.min(r, g, b)) *
+                                        count,
+                                };
+                            })
+                            .sort((a, b) => a.weight - b.weight)
+                            .reverse()[0].color16;
+                        const lab = rgb2lab(rgb16.map((x) => (x / 15) * 255));
                         return Object.entries(colors).sort(
-                            (a, b) => cie94(a[1] as number[], lab)
-                                    - cie94(b[1] as number[], lab)
-                            )[0][0] as string;
+                            (a, b) =>
+                                cie94(a[1] as number[], lab) -
+                                cie94(b[1] as number[], lab),
+                        )[0][0] as string;
                     }
                     if (!prev_name_dict[event.room_id])
                         prev_name_dict[event.room_id] = {};
@@ -362,31 +392,35 @@ new Cli({
                         if (profile.displayname === undefined) {
                             const state = await intent.getStateEvent(
                                 room_id,
-                                'm.room.member',
+                                "m.room.member",
                                 user_id,
                                 true,
                             );
                             room_prev_name_dict[user_id] = {
                                 name: state?.displayname?.trim() ?? name,
-                                avatar: await getAvatarByMxUrl(state?.avatar_url)
+                                avatar: await getAvatarByMxUrl(
+                                    state?.avatar_url,
+                                ),
                             };
                         } else {
                             room_prev_name_dict[user_id] = {
-                                name : profile.displayname?.trim() ?? name,
-                                avatar : await getAvatarByMxUrl(profile.avatar_url)
-                            }
+                                name: profile.displayname?.trim() ?? name,
+                                avatar: await getAvatarByMxUrl(
+                                    profile.avatar_url,
+                                ),
+                            };
                         }
                     }
                     name = room_prev_name_dict[user_id].name ?? name;
                     avatar = room_prev_name_dict[user_id].avatar ?? avatar;
                     name = name || user_id;
-                    if(avatar){
-                        name = `${avatar} ${name}`
+                    if (avatar) {
+                        name = `${avatar} ${name}`;
                     }
                     //avatar = avatar || "";
                     async function parseQuote() {
-                        const l1: any = event.content['m.relates_to'];
-                        const l2: any = l1 ? l1['m.in_reply_to'] : undefined;
+                        const l1: any = event.content["m.relates_to"];
+                        const l2: any = l1 ? l1["m.in_reply_to"] : undefined;
                         const l3: string | undefined = l2?.event_id;
                         const l4 =
                             l3 === undefined
@@ -396,35 +430,37 @@ new Cli({
                     }
                     function htmlToMsgChain(s: string): MessageChain[] {
                         const html = parse(s);
-                        let chain: MessageChain[] = [Plain(`${name}: `)];
+                        const chain: MessageChain[] = [Plain(`${name}: `)];
                         if (
                             html.firstChild instanceof HTMLElement &&
-                            html.firstChild?.tagName == 'MX-REPLY'
+                            html.firstChild?.tagName == "MX-REPLY"
                         ) {
                             html.firstChild.remove();
                         }
                         function onNode(node: Node) {
                             if (node instanceof HTMLElement) {
                                 if (
-                                    node.tagName == 'A' &&
+                                    node.tagName == "A" &&
                                     node.attributes?.href?.startsWith(
-                                        'https://matrix.to/#/@',
+                                        "https://matrix.to/#/@",
                                     )
                                 ) {
-                                    let user_id = node.attributes.href.slice(
-                                        'https://matrix.to/#/'.length,
+                                    const user_id = node.attributes.href.slice(
+                                        "https://matrix.to/#/".length,
                                     );
-                                    let match = user_id.match(
-                                        new RegExp(matrixPuppetId('(\\d+)')),
+                                    const match = user_id.match(
+                                        new RegExp(matrixPuppetId("(\\d+)")),
                                     );
                                     if (match != null) {
-                                        let qq: number = parseInt(match[1]);
+                                        const qq: number = Number.parseInt(
+                                            match[1],
+                                        );
                                         chain.push(At(qq));
                                     } else {
-                                        chain.push(Plain('@' + node.text));
+                                        chain.push(Plain("@" + node.text));
                                     }
-                                } else if (node.tagName == 'BR') {
-                                    chain.push(Plain('\n'));
+                                } else if (node.tagName == "BR") {
+                                    chain.push(Plain("\n"));
                                 } else {
                                     node.childNodes.forEach(onNode);
                                 }
@@ -436,15 +472,15 @@ new Cli({
                         return chain;
                     }
                     if (
-                        event.type == 'm.room.message' &&
-                        event.content.msgtype == 'm.text'
+                        event.type == "m.room.message" &&
+                        event.content.msgtype == "m.text"
                     ) {
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
                         if (l4 !== null) {
                             if (
-                                event.content.format == 'org.matrix.custom.html'
+                                event.content.format == "org.matrix.custom.html"
                             ) {
                                 const s = event.content
                                     .formatted_body as string;
@@ -457,16 +493,16 @@ new Cli({
                                 });
                             } else {
                                 const s = event.content.body as string;
-                                let lines = s.split('\n');
+                                let lines = s.split("\n");
                                 if (
-                                    lines[0].startsWith('> ') &&
-                                    lines[1] == ''
+                                    lines[0].startsWith("> ") &&
+                                    lines[1] == ""
                                 ) {
                                     lines = lines.splice(2);
                                 }
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
-                                        `${name}: ${lines.join('\n')}` as any,
+                                        `${name}: ${lines.join("\n")}` as any,
                                         qq_id,
                                         Number(l4[1]),
                                     );
@@ -474,7 +510,7 @@ new Cli({
                             }
                         } else {
                             if (
-                                event.content.format == 'org.matrix.custom.html'
+                                event.content.format == "org.matrix.custom.html"
                             ) {
                                 const s = event.content
                                     .formatted_body as string;
@@ -501,8 +537,8 @@ new Cli({
                         await addMatrix2QQMsgMapping(event_id, source);
                         await addQQ2MatrixMsgMapping(source, event_id);
                     } else if (
-                        event.type == 'm.room.message' &&
-                        event.content.msgtype == 'm.image'
+                        event.type == "m.room.message" &&
+                        event.content.msgtype == "m.image"
                     ) {
                         try {
                             const url = intent.matrixClient.mxcToHttp(
@@ -513,7 +549,7 @@ new Cli({
                             let msg;
                             const l4 = await parseQuote();
                             const target: GroupTarget = {
-                                type: 'GroupMessage',
+                                type: "GroupMessage",
                                 sender: {
                                     group: {
                                         id: qq_id,
@@ -556,7 +592,7 @@ new Cli({
                             console.log(err);
                         }
                         //const url = intent.down
-                    } else if (event.type == 'm.room.redaction') {
+                    } else if (event.type == "m.room.redaction") {
                         try {
                             const ev = await getMatrix2QQMsgMapping(
                                 event.redacts as string,
@@ -574,24 +610,24 @@ new Cli({
 
         async function getAvatarUrl(qq: number, intent: Intent) {
             const key = `qq_avatar_${qq}`;
-            console.log('t1');
+            console.log("t1");
             while (localStorage.getItem(key) === null) {
                 try {
-                    console.log('t2');
+                    console.log("t2");
                     const url = `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=140`;
                     const img = await fetch(url, { agent });
                     const buffer = await img.arrayBuffer();
-                    console.log('fetched');
+                    console.log("fetched");
                     const content = await intent.uploadContent(
                         Buffer.from(buffer),
                         {
-                            name: 'avatar.jpg',
-                            type: 'image/jpeg',
+                            name: "avatar.jpg",
+                            type: "image/jpeg",
                         },
                     );
 
                     localStorage.setItem(key, content);
-                    console.log('t3');
+                    console.log("t3");
                 } catch (err) {
                     console.log(
                         `Error fetching avatar for ${qq}, retrying`,
@@ -629,7 +665,7 @@ new Cli({
         ): Promise<[group: string, id: string] | null> {
             return localStorage
                 .getItem(`msgmapping_matrix_to_qq_${eventId}`)
-                ?.split('|') as any;
+                ?.split("|") as any;
         }
         async function getQQ2MatrixMsgMapping(
             msgId: [group: string, id: string],
@@ -644,14 +680,14 @@ new Cli({
 
                 try {
                     await superintent;
-                } catch (err) { }
+                } catch (err) {}
                 try {
                     await superintent.join(room_id);
-                } catch (err) { }
+                } catch (err) {}
                 await superintent.invite(room_id, bot);
-            } catch (err) { }
+            } catch (err) {}
         }
-        bot.onEvent('groupRecall', async (message) => {
+        bot.onEvent("groupRecall", async (message) => {
             const group_id = message.group.id;
             const room_id = findMxByQQ(group_id);
             if (room_id === null) return;
@@ -666,50 +702,49 @@ new Cli({
                 intent.matrixClient.redactEvent(
                     room_id,
                     matrix_id,
-                    '撤回了一条消息',
+                    "撤回了一条消息",
                 );
             }
         });
         // 接受消息,发送消息(*)
         bot.onMessage(async (message) => {
-            if (message.type == 'GroupMessage') {
+            if (message.type == "GroupMessage") {
                 const g = message.sender as GroupSender;
                 const group_id = g.group.id;
                 const mx_id = findMxByQQ(group_id);
                 if (mx_id === null) return;
-                const { type, sender, messageChain, reply, quoteReply } =
-                    message;
-                let msg = '';
-                let formatted = '';
-                let images: string[] = [];
+                const { messageChain } = message;
+                let msg = "";
+                let formatted = "";
+                const images: string[] = [];
                 console.log(messageChain);
                 let quoted: string | null = null;
                 let source: string | null = null;
                 for (const chain of messageChain) {
-                    if (chain.type == 'Forward') {
+                    if (chain.type == "Forward") {
                         const local_msgs: string[] = [];
                         const local_formatted_msgs: string[] = [];
                         for (const node of chain.nodeList) {
-                            let local_msg = '';
-                            let local_formatted = '';
+                            let local_msg = "";
+                            let local_formatted = "";
                             const local_sender = node.senderName;
                             for (const localchain of node.messageChain) {
-                                if (localchain.type === 'Plain') {
-                                    local_msg += localchain.text ?? '';
+                                if (localchain.type === "Plain") {
+                                    local_msg += localchain.text ?? "";
                                     local_formatted += escape(
-                                        localchain.text ?? '',
+                                        localchain.text ?? "",
                                     );
-                                } else if (localchain.type === 'At') {
-                                    local_msg += `@${localchain.display ?? ''}`;
+                                } else if (localchain.type === "At") {
+                                    local_msg += `@${localchain.display ?? ""}`;
                                     local_formatted += `@${escape(
-                                        localchain.display ?? '',
+                                        localchain.display ?? "",
                                     )}`;
-                                } else if (localchain.type === 'Image') {
-                                    local_msg += '[图片]';
-                                    local_formatted += '[图片]';
-                                } else if (localchain.type === 'Forward') {
-                                    local_msg += '[转发消息]';
-                                    local_formatted += '[转发消息]';
+                                } else if (localchain.type === "Image") {
+                                    local_msg += "[图片]";
+                                    local_formatted += "[图片]";
+                                } else if (localchain.type === "Forward") {
+                                    local_msg += "[转发消息]";
+                                    local_formatted += "[转发消息]";
                                 }
                             }
                             local_msgs.push(`${local_sender}: ${local_msg}`);
@@ -717,23 +752,23 @@ new Cli({
                                 `${escape(local_sender)}: ${local_formatted}`,
                             );
                         }
-                        msg += local_msgs.join('\n');
+                        msg += local_msgs.join("\n");
                         formatted += `<blockquote>\n<p>${local_formatted_msgs.join(
-                            '<br>',
+                            "<br>",
                         )}</p></blockquote>`;
                     }
                 }
                 for (const chain of messageChain) {
-                    if (chain.type == 'Quote') {
+                    if (chain.type == "Quote") {
                         quoted = String(chain.id!);
                     }
                 }
                 const superintent = bridge.getIntent(matrixAdminId);
                 for (const chain of messageChain) {
-                    if (chain.type === 'Plain') {
+                    if (chain.type === "Plain") {
                         msg += Plain.value(chain); // 从 messageChain 中提取文字内容
                         formatted += escape(Plain.value(chain));
-                    } else if (chain.type === 'At') {
+                    } else if (chain.type === "At") {
                         if (chain.target! == config.mirai.qq) {
                             // try to find quoted.
                             if (quoted) {
@@ -753,11 +788,11 @@ new Cli({
                                         const profile =
                                             await superintent.getStateEvent(
                                                 mx_id,
-                                                'm.room.member',
+                                                "m.room.member",
                                                 sender_id,
                                                 true,
                                             );
-                                        msg += '@' + profile.displayname;
+                                        msg += "@" + profile.displayname;
                                         formatted += `<a href="https://matrix.to/#/${sender_id}">@${escape(
                                             profile.displayname,
                                         )}</a>`;
@@ -766,24 +801,24 @@ new Cli({
                                 }
                             }
 
-                            msg += '@' + config.puppetCustomization.adminName;
+                            msg += "@" + config.puppetCustomization.adminName;
                             formatted += `<a href="https://matrix.to/#/${matrixAdminId}">@${config.puppetCustomization.adminName}</a>`;
                         } else {
                             const id = matrixPuppetId(chain.target!);
                             const profile = await superintent.getStateEvent(
                                 mx_id,
-                                'm.room.member',
+                                "m.room.member",
                                 id,
                                 true,
                             );
-                            msg += '@' + profile.displayname;
+                            msg += "@" + profile.displayname;
                             formatted += `<a href="https://matrix.to/#/${id}">@${escape(
                                 profile.displayname,
                             )}</a>`;
                         }
-                    } else if (chain.type == 'Source') {
+                    } else if (chain.type == "Source") {
                         source = String(chain.id!);
-                    } else if (chain.type == 'Image') {
+                    } else if (chain.type == "Image") {
                         console.log(chain);
                         images.push(chain.url!);
                         //msg+='[图图]';
@@ -803,50 +838,50 @@ new Cli({
                     undefined,
                     false,
                 );
-                console.log('User', user_profile);
-                console.log('Group', group_profile);
+                console.log("User", user_profile);
+                console.log("Group", group_profile);
                 const a = `${group_profile.nickname} (QQ)`;
                 const b = (await getAvatarUrl(g.id, intent)) ?? undefined;
                 if (user_profile.displayname !== a) {
-                    console.log('Reset displayname globally: ignored.');
+                    console.log("Reset displayname globally: ignored.");
                     //await intent.setDisplayName(a);
                 }
                 if (user_profile.avatar_url !== b) {
                     if (b !== undefined) await intent.setAvatarUrl(b);
                 }
-                console.log('DEBUG', (intent as any).opts);
+                console.log("DEBUG", (intent as any).opts);
                 const member = await intent.getStateEvent(
                     mx_id,
-                    'm.room.member',
+                    "m.room.member",
                     key,
                     true,
                 );
-                console.log('Member', member);
+                console.log("Member", member);
                 const local_name = `${g.memberName} (QQ)`;
                 if (member.displayname !== local_name) {
                     member.displayname = local_name;
-                    console.log('Reset displayname locally.');
+                    console.log("Reset displayname locally.");
                     await intent.sendStateEvent(
                         mx_id,
-                        'm.room.member',
+                        "m.room.member",
                         key,
                         member,
                     );
                 }
                 const member2 = await intent.getStateEvent(
                     mx_id,
-                    'm.room.member',
+                    "m.room.member",
                     key,
                     true,
                 );
-                console.log('Member after', member2);
-                console.log('uploaded');
+                console.log("Member after", member2);
+                console.log("uploaded");
                 if (msg) {
-                    let data: any = {
+                    const data: any = {
                         body: msg,
-                        format: 'org.matrix.custom.html',
+                        format: "org.matrix.custom.html",
                         formatted_body: formatted,
-                        msgtype: 'm.text',
+                        msgtype: "m.text",
                     };
                     if (quoted !== null) {
                         const orig_mat = await getQQ2MatrixMsgMapping([
@@ -854,8 +889,8 @@ new Cli({
                             quoted,
                         ]);
                         if (orig_mat !== null) {
-                            data['m.relates_to'] = {
-                                'm.in_reply_to': { event_id: orig_mat },
+                            data["m.relates_to"] = {
+                                "m.in_reply_to": { event_id: orig_mat },
                             };
                         }
                     }
@@ -881,18 +916,18 @@ new Cli({
                             Buffer.from(buffer),
                         );
                         const { event_id } = await intent.sendMessage(mx_id, {
-                            msgtype: 'm.image',
+                            msgtype: "m.image",
                             url: content,
                             body: `QQ图片.png`,
                             info: {
-                                mimetype: 'image/png',
+                                mimetype: "image/png",
                             },
                         });
                         await addMatrix2QQMsgMapping(event_id, qqsource);
                     } catch (err) {
                         const { event_id } = await intent.sendText(
                             mx_id,
-                            'Failed to send image: ' + url,
+                            "Failed to send image: " + url,
                         );
                         await addMatrix2QQMsgMapping(event_id, qqsource);
                     }
@@ -908,10 +943,10 @@ new Cli({
          * 'group' - 只监听群
          * 'temp' - 只监听临时会话
          */
-        bot.listen('group'); // 相当于 bot.listen('friend', 'group', 'temp')
+        bot.listen("group"); // 相当于 bot.listen('friend', 'group', 'temp')
 
         console.log(
-            'Matrix-side listening on %s:%s',
+            "Matrix-side listening on %s:%s",
             config.matrix.listenIP,
             config.matrix.listenPort,
         );
@@ -923,7 +958,7 @@ new Cli({
                     config.puppetCustomization.customizationVersion;
                 if (
                     Number(
-                        localStorage.getItem('CUSTOMIZATION_VERSION') ?? '0',
+                        localStorage.getItem("CUSTOMIZATION_VERSION") ?? "0",
                     ) < customizationVersion
                 ) {
                     await intent.setDisplayName(
@@ -933,7 +968,7 @@ new Cli({
                         config.puppetCustomization.adminAvatar,
                     );
                     localStorage.setItem(
-                        'CUSTOMIZATION_VERSION',
+                        "CUSTOMIZATION_VERSION",
                         String(customizationVersion),
                     );
                 }
