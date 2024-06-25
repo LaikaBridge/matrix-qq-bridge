@@ -15,13 +15,14 @@ import type { MatrixProfileInfo } from "matrix-bot-sdk";
 import fetch from "node-fetch";
 import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
 import { LocalStorage } from "node-localstorage";
-import Mirai, { type GroupTarget, type MessageChain } from "node-mirai-sdk";
+import Mirai from "node-mirai-sdk";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
 import { readConfig } from "./config";
 import { MiraiSatoriAdaptor } from "./satori-client";
+import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./satori-client";
 
-const { Plain, At, Image } = Mirai.MessageComponent;
+import  { Plain, At, Image } from "./satori-client";
 
 const config = readConfig();
 
@@ -128,15 +129,6 @@ bot.onSignal("verified", async () => {
     console.log(`There are ${friendList.length} friends in bot`);
 });
 
-declare type GroupSender = {
-    id: number;
-    memberName: string;
-    specialTitle: string;
-    permission: any;
-    joinTimestamp: number;
-    lastSpeakTimestamp: number;
-    group: Mirai.GroupPermissionInfo;
-};
 
 // 退出前向 mirai-http-api 发送释放指令(*)
 process.on("exit", () => {
@@ -256,7 +248,7 @@ new Cli({
         reg.addRegexPattern("users", `@${config.matrix.namePrefix}_.*`, true);
         callback(reg);
     },
-    run: (port, config_) => {
+    run: async (port, config_) => {
         const cache = new MembershipCache();
         const prev_name_dict: Record<
             string,
@@ -488,7 +480,7 @@ new Cli({
                                     return await bot.sendQuotedGroupMessage(
                                         htmlToMsgChain(s),
                                         qq_id,
-                                        Number(l4[1]),
+                                        l4[1],
                                     );
                                 });
                             } else {
@@ -504,7 +496,7 @@ new Cli({
                                     return await bot.sendQuotedGroupMessage(
                                         `${name}: ${lines.join("\n")}` as any,
                                         qq_id,
-                                        Number(l4[1]),
+                                        l4[1],
                                     );
                                 });
                             }
@@ -565,7 +557,7 @@ new Cli({
                                     return await bot.sendQuotedGroupMessage(
                                         [Plain(`${name}:`), Image(image)],
                                         qq_id,
-                                        Number(l4[1]),
+                                        l4[1],
                                     );
                                 });
                             } else {
@@ -766,8 +758,8 @@ new Cli({
                 const superintent = bridge.getIntent(matrixAdminId);
                 for (const chain of messageChain) {
                     if (chain.type === "Plain") {
-                        msg += Plain.value(chain); // 从 messageChain 中提取文字内容
-                        formatted += escape(Plain.value(chain));
+                        msg += chain.text; // 从 messageChain 中提取文字内容
+                        formatted += escape(chain.text);
                     } else if (chain.type === "At") {
                         if (chain.target! == config.mirai.qq) {
                             // try to find quoted.
@@ -943,7 +935,7 @@ new Cli({
          * 'group' - 只监听群
          * 'temp' - 只监听临时会话
          */
-        bot.listen("group"); // 相当于 bot.listen('friend', 'group', 'temp')
+        await bot.listen("group"); // 相当于 bot.listen('friend', 'group', 'temp')
 
         console.log(
             "Matrix-side listening on %s:%s",
