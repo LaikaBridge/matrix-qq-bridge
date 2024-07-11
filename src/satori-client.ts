@@ -235,11 +235,13 @@ export class MiraiSatoriAdaptor {
                     const forwardId = element.attrs.id;
                     const bot = (this.bot.internal as any as Internal);
                     console.log(bot.getForwardMsg)
-                    const forwardMsg = (await bot._request!("get_forward_msg", {message_id: `${forwardId}`})).data.messages;
+                    const req = (await bot._request!("get_forward_msg", {message_id: `${forwardId}`}));
+                    console.log(req);
+                    const forwardMsg = req.data.messages;
                     const nodeList: MockForward["nodeList"] = [];
                     for(const msg of forwardMsg){
                         const elements = CQCode.parse(msg.content);
-                        const subChain: MockMessageChain[] = await this.untranslateMessageChain("FORWARDED", elements);
+                        const subChain: MockMessageChain[] = await this.untranslateMessageChain("FORWARDED", elements, true);
                         
                         nodeList.push({
                             senderName: msg.sender.nickname,
