@@ -220,7 +220,7 @@ export class MiraiSatoriAdaptor {
                     type: "Quote",
                     id: element.attrs.id
                 })
-            }else if(element.type ==="img"){
+            }else if(element.type ==="img" || element.type === "image"){
                 chains.push({
                     type: "Image",
                     url: element.attrs.src
