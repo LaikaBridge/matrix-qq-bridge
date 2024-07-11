@@ -3,8 +3,12 @@ import satori from "@satorijs/adapter-satori";
 import discord from "@satorijs/adapter-discord"
 import schema from "@cordisjs/schema"
 import http from "@cordisjs/plugin-http"
-import { Context, Element as KE, ForkScope, Logger } from "koishi";
+import { Context, Element as KE, ForkScope, Logger, Bot, h } from "koishi";
 import type { GroupTarget, MessageChain } from "node-mirai-sdk";
+import * as onebot from "koishi-plugin-adapter-onebot";
+import Server from "@koishijs/plugin-server";
+import { Internal } from "koishi-plugin-adapter-onebot/lib/types";
+import {CQCode} from "koishi-plugin-adapter-onebot";
 type image = Buffer;
 export class MiraiSatoriAdaptor {
     ctx: Context;
@@ -33,24 +37,40 @@ export class MiraiSatoriAdaptor {
  
         ctx.inject(["schema"], (ctx)=>{
             ctx.plugin(http);
+            ctx.plugin(Server as any);
         });
         
         ctx.inject(["http"], (ctx)=>{
-            ctx.plugin(satori, {
+            console.log("Loading Onebot")
+            ctx.plugin(onebot.OneBotBot, {
+                selfId: `${config.qq}`,
+                protocol: "ws",
                 endpoint: config.host,
                 token: config.verifyKey,
             });
         });
-        
+
         //console.log(satori)
-        ctx.on("message", (msg)=>{
+        ctx.on("message", async (msg)=>{
             if(!msg.event.guild){
                 return;
             }
             if(msg.event.selfId === msg.event.user?.id){
                 return;
             }
-            const msgchain = this.untranslateMessageChain(msg.event.message?.id ?? "UNMAPPED", msg.content??"");
+
+
+            let elements : KE[] = [];
+            const quote = msg.event.message?.quote;
+            if(quote){
+                elements.push(h("quote", {id: quote.id}));
+            }
+            elements.push(...KE.parse(msg.content??""));
+            let msgchain: MockMessageChain[] = [];
+
+            const msgchain_body = await this.untranslateMessageChain(msg.event.message?.id ?? "UNMAPPED", elements);
+
+            msgchain.push(...msgchain_body);
             console.log(msg);
             const msg2: {
                 type: "GroupMessage";
@@ -60,7 +80,7 @@ export class MiraiSatoriAdaptor {
                 type: "GroupMessage",
                 sender: {
                     id: Number(msg.event.user?.id ?? "0"),
-                    memberName: msg.author.nick ?? msg.author.name ?? "",
+                    memberName: (msg.author?.nick || msg.author?.name) || `${msg.author.id}`,
                     group: {
                         id: Number(msg.event.guild.id),
                         name: msg.event.guild.name??""
@@ -70,9 +90,14 @@ export class MiraiSatoriAdaptor {
             }
             this.emit("message", msg2);
         })
-
+        ctx.on("bot-connect", (bot)=>{
+            if(bot.selfId === `${config.qq}`){
+                this.connected = true;
+            }
+        })
         
     }
+    connected = false;
     onSignal(signal: "authed", f: () => void): void;
     onSignal(signal: "verified", f: () => void): void;
     onSignal(signal: string, f: Function): void {
@@ -90,17 +115,20 @@ export class MiraiSatoriAdaptor {
         this.ev.on(event, f as any);
     }
     get bot(){
-        const bots = this.ctx.get("satori")?.bots ?? [];
-        return bots[0];
+        if(!this.connected){
+            return null as any as typeof this.ctx.bots[0];
+        }
+        return this.ctx.bots[0]
     }
     async listen(g: "group") {
         await this.ctx.start();
        
         while(1){
-            if(this.bot) break;
+            
             await new Promise((resolve)=>{
                 setTimeout(resolve, 1000);
             });
+            if(this.bot) break;
         }
         this.ev.emit("authed");
         console.log("Koishi ready.")
@@ -156,8 +184,14 @@ export class MiraiSatoriAdaptor {
         this.ev.removeAllListeners();
         await this.ctx.stop();
     }
-    untranslateMessageChain(msgid: string, content: string): MockMessageChain[]{
-        const elements = KE.parse(content);
+    async untranslateMessageChain(msgid: string, content: string | KE[], disableForward: boolean = false): Promise<MockMessageChain[]>{
+        
+        let elements: KE[];
+        if(typeof content === "string"){
+            elements = KE.parse(content);
+        }else{
+            elements = content;
+        }
         console.log(elements);
         const chains: MockMessageChain[] = [
             {
@@ -181,28 +215,49 @@ export class MiraiSatoriAdaptor {
             }else if(element.type === "quote"){
                 // TODO: quote not working.
                 // need a way to get quoted message id.
-                for(const e of element.children){
-                    if(e.type==="author"){
-                        chains.push(Plain("[回复 "), At(e.attrs.id), Plain("]"));
-                    }
-                }
-                /*
+                // Fix: No longer required for OneBot.
                 chains.push({
                     type: "Quote",
-
-                    id: element.attrs["chronocat:seq"] ?? element.attrs.id
-                })*/
+                    id: element.attrs.id
+                })
             }else if(element.type ==="img"){
                 chains.push({
                     type: "Image",
                     url: element.attrs.src
                 })
+            }else if(element.type==="forward"){
+                if(disableForward){
+                    chains.push({
+                        type: "Plain",
+                        text: "[嵌套转发消息]"
+                    })
+                }else{
+                    const forwardId = element.attrs.id;
+                    const bot = (this.bot.internal as any as Internal);
+                    console.log(bot.getForwardMsg)
+                    const forwardMsg = (await bot._request!("get_forward_msg", {message_id: `${forwardId}`})).data.messages;
+                    const nodeList: MockForward["nodeList"] = [];
+                    for(const msg of forwardMsg){
+                        const elements = CQCode.parse(msg.content);
+                        const subChain: MockMessageChain[] = await this.untranslateMessageChain("FORWARDED", elements);
+                        
+                        nodeList.push({
+                            senderName: msg.sender.nickname,
+                            messageChain: subChain
+                        })
+                    }
+                    chains.push({
+                        type: "Forward",
+                        nodeList
+                    })
+                }
+                
             }
         }
         
         return chains;
     }
-    translateMessageChain(chains: MockMessageChain[]): KE[]{
+    async translateMessageChain(chains: MockMessageChain[]): Promise<KE[]>{
         const elements: KE[] = [];
 
         for(const chain of chains){
@@ -212,7 +267,8 @@ export class MiraiSatoriAdaptor {
                 elements.push(KE.at(chain.target));
             }else if(chain.type==="Quote"){
                 elements.push(KE.quote(chain.id));
-            }else if(chain.type==="Forward"){
+            }else if(chain.type==="ForwardOnebot"){
+                
                 // should not exist.
                 // elements.push(KE.text("[转发消息]"))
             }else if(chain.type==="Image"){
@@ -233,7 +289,7 @@ export class MiraiSatoriAdaptor {
             type: "Quote",
             id: quote
         }, ...msg];
-        const message = await this.bot.sendMessage(`${group}`, this.translateMessageChain(
+        const message = await this.bot.sendMessage(`${group}`, await this.translateMessageChain(
             chain), `${group}`);
         return {messageId: Number(message[0])};
     }
@@ -244,7 +300,7 @@ export class MiraiSatoriAdaptor {
         if(typeof msg === "string"){
             return this.sendGroupMessage([Plain(msg)], group);
         }
-        const chain = this.translateMessageChain(msg);
+        const chain = await this.translateMessageChain(msg);
         //console.log("Sending", chain)
         const message = await this.bot.sendMessage(`${group}`, chain , `${group}`);
         console.log(message);
@@ -258,7 +314,7 @@ export class MiraiSatoriAdaptor {
     }
 }
 
-export type MockMessageChain = MockForward | MockQuote | MockPlain | MockAt | MockSource | MockImage;
+export type MockMessageChain = MockForward | MockQuote | MockPlain | MockAt | MockSource | MockImage | ForwardOnebot;
 export type MockForward = {
     type: "Forward"
     nodeList: ({
@@ -298,6 +354,10 @@ export type MockImage = {
     url?: string
     imageId?: string
     buffer?: Buffer
+}
+export type ForwardOnebot ={
+    type: "ForwardOnebot",
+    id: number
 }
 export interface MockGroupTarget {
     type: "GroupMessage",
