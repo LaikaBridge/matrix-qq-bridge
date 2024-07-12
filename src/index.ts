@@ -591,7 +591,7 @@ new Cli({
                             );
                             if (!ev) return;
                             console.log(ev);
-                            await bot.recall(Number(ev[1]), Number(ev[0]));
+                            await bot.recall(ev[1], ev[0]);
                         } catch (err) {
                             console.log(err);
                         }

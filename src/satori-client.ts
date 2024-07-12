@@ -90,10 +90,26 @@ export class MiraiSatoriAdaptor {
             }
             this.emit("message", msg2);
         })
-        ctx.on("bot-connect", (bot)=>{
-            if(bot.selfId === `${config.qq}`){
-                this.connected = true;
+        ctx.on("message-deleted", (msg)=>{
+            console.log(msg);
+            if(!msg.event.guild){
+                return;
             }
+            if(msg.event.selfId === msg.event.user?.id){
+                return;
+            }
+            this.emit("groupRecall", {
+                group: {
+                    id: Number(msg.event.guild.id),
+                },
+                authorId: Number(msg.event.user?.id),
+                messageId: msg.event.message!.id!
+            })
+        });
+        ctx.on("ready", ()=>{
+            //if(bot.selfId === `${config.qq}`){
+                this.connected = true;
+            //}
         })
         
     }
@@ -161,7 +177,7 @@ export class MiraiSatoriAdaptor {
         msg: {
             group: { id: number };
             authorId: number;
-            messageId: number;
+            messageId: string;
         },
     ): void;
     emit(ev: string, msg: any): void {
@@ -234,7 +250,6 @@ export class MiraiSatoriAdaptor {
                 }else{
                     const forwardId = element.attrs.id;
                     const bot = (this.bot.internal as any as Internal);
-                    console.log(bot.getForwardMsg)
                     const req = (await bot._request!("get_forward_msg", {message_id: `${forwardId}`}));
                     console.log(req);
                     const forwardMsg = req.data.messages;
@@ -312,7 +327,10 @@ export class MiraiSatoriAdaptor {
     async uploadImage(image: Buffer, target: MockGroupTarget): Promise<image> {
         return image;
     }
-    async recall(msgid: number, groupid: number) {
+    async recall(msgid: string, groupid: string) {
+        const bot = (this.bot.internal as any as Internal);
+        const req = (await bot._request!("delete_msg", {message_id: Number(msgid)}));
+        console.log(req);
     }
 }
 
