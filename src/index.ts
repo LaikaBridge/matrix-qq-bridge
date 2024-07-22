@@ -362,7 +362,7 @@ new Cli({
                                 return {
                                     color16: [r, g, b],
                                     weight:
-                             /* chroma */ (Math.max(r, g, b) -
+                                        /* chroma */ (Math.max(r, g, b) -
                                             Math.min(r, g, b)) *
                                         count,
                                 };
@@ -660,23 +660,15 @@ new Cli({
                          */
                         const url = intent.matrixClient.mxcToHttp(event.content.url as string);
                         let msgbuf: Buffer;
-                        //以防万一，看起来tg => mx bot也有史山
-                        if (event.content.mimetype != "image/gif") {
-                            let cs = concat(function (buf) {
-                                msgbuf = buf;
-                            });
-                            let pipe = ffmpeg().addInput(url).format("gif").on("error", function (err, _, stderr) {
-                                console.log(`Error on ffmpeg: ${err}`);
-                                console.log(`stderr: ${stderr}`);
-                            }).on("end", function () {
-                                console.log("ffmpeg convert succeeded");
-                            }).pipe(cs, { end: true });
-                        } else {
-                            const req = await fetch(url);
-                            const buf = await req.arrayBuffer();
-                            msgbuf = Buffer.from(buf);
-                        }
-
+                        let cs = concat(function (buf) {
+                            msgbuf = buf;
+                        });
+                        let pipe = ffmpeg().addInput(url).format("gif").on("error", function (err, _, stderr) {
+                            console.log(`Error on ffmpeg: ${err}`);
+                            console.log(`stderr: ${stderr}`);
+                        }).on("end", function () {
+                            console.log("ffmpeg convert succeeded");
+                        }).pipe(cs, { end: true });
                         try {
                             const l4 = await parseQuote();
                             let msg;
