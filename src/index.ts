@@ -23,9 +23,8 @@ import { MiraiSatoriAdaptor } from "./satori-client";
 import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./satori-client";
 import sharp from "sharp"
 import ffmpeg from "fluent-ffmpeg"
-import concat from "concat-stream"
+import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
-import { exec } from "node:child_process";
 
 const config = readConfig();
 
@@ -660,15 +659,23 @@ new Cli({
                          */
                         const url = intent.matrixClient.mxcToHttp(event.content.url as string);
                         let msgbuf: Buffer;
-                        let cs = concat(function (buf) {
-                            msgbuf = buf;
-                        });
+                        function createPipe() {
+                            let res: (arg0: Buffer) => void, rej;
+                            const prom = new Promise((resolve, reject) => {
+                                res = resolve;
+                                rej = reject;
+                            });
+                            let cs = concatStream((buf) => res(buf));
+                            return { stream: cs, promise: prom };
+                        }
+                        let pres = createPipe();
                         let pipe = ffmpeg().addInput(url).format("gif").on("error", function (err, _, stderr) {
                             console.log(`Error on ffmpeg: ${err}`);
                             console.log(`stderr: ${stderr}`);
                         }).on("end", function () {
                             console.log("ffmpeg convert succeeded");
-                        }).pipe(cs, { end: true });
+                        }).pipe(pres.stream, { end: true });
+                        msgbuf = await pres.promise as Buffer;
                         try {
                             const l4 = await parseQuote();
                             let msg;
