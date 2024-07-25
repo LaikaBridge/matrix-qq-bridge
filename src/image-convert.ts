@@ -55,7 +55,7 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
     ffmpeg()
         .addInput(Readable.from(image.data))
         .format(mimeInfo.ffmpegCodec[0])
-        .videoCodec(mimeInfo.ffmpegCodec[1])
+        .outputOptions(["-c", mimeInfo.ffmpegCodec[1]])
         .on("error", (err) => {
             console.log("ffmpeg conversion failed");
             console.error(err);
@@ -78,6 +78,6 @@ export async function convertToQQ(buffer: Buffer){
 export async function convertToMX(buffer: Buffer){
     const mimedImage = await guessMime(buffer);
     const mime = SUPPORTED_MIMES[mimedImage.mime];
-    const targetMime = mime.isAnimated? "video/webm" : "image/webp";
+    const targetMime = mime.isAnimated? "video/webm" : "image/png";
     return convertTo(mimedImage, targetMime);
 }

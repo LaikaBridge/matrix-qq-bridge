@@ -494,6 +494,12 @@ new Cli({
                             // driving mode. don't forward to qq.
                             return;
                         }
+                    }
+                    // not driving
+                    if (
+                        event.type == "m.room.message" &&
+                        event.content.msgtype == "m.text"
+                    ) {
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
