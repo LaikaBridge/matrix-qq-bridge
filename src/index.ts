@@ -25,6 +25,7 @@ import sharp from "sharp"
 import ffmpeg from "fluent-ffmpeg"
 import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
+import { convertToQQ, guessMime } from "./image-convert";
 
 const config = readConfig();
 
@@ -597,16 +598,10 @@ new Cli({
                             const url = intent.matrixClient.mxcToHttp(event.content.url as string);
                             const req = await fetch(url);
                             const buf = await req.arrayBuffer();
-                            let mime = event.content.mimetype as string;
-                            let imgbuf: ArrayBuffer;
-                            if (event.content.mimetype != "image/gif") {
-                                const b = await sharp(buf).png().toBuffer();
-                                imgbuf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-                                mime = "image/png";
-                            } else {
-                                imgbuf = buf;
-                            }
-
+                            const srcMime = event.content.mimetype as string;
+                            const converted = await convertToQQ(Buffer.from(buf));
+                            const imgbuf = converted.data;
+                            const mime = converted.mime;
                             let msg;
                             const l4 = await parseQuote();
                             const target: GroupTarget = {
@@ -654,28 +649,15 @@ new Cli({
                         }
                     } else if (event.type == "m.room.message" && ((event.content.info as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
                         /**
-                         * gjz老师昨天发的星野爱动图可以match如下pattern
                          * 为啥有的animated sticker转成gif有的转成mp4???
                          */
                         const url = intent.matrixClient.mxcToHttp(event.content.url as string);
-                        let msgbuf: Buffer;
-                        function createPipe() {
-                            let res: (arg0: Buffer) => void, rej;
-                            const prom = new Promise((resolve, reject) => {
-                                res = resolve;
-                                rej = reject;
-                            });
-                            let cs = concatStream((buf) => res(buf));
-                            return { stream: cs, promise: prom };
-                        }
-                        let pres = createPipe();
-                        let pipe = ffmpeg().addInput(url).format("gif").on("error", function (err, _, stderr) {
-                            console.log(`Error on ffmpeg: ${err}`);
-                            console.log(`stderr: ${stderr}`);
-                        }).on("end", function () {
-                            console.log("ffmpeg convert succeeded");
-                        }).pipe(pres.stream, { end: true });
-                        msgbuf = await pres.promise as Buffer;
+                        const req = await fetch(url);
+                        const buf = await req.arrayBuffer();
+                        const srcMime = event.content.mimetype as string;
+                        const converted = await convertToQQ(Buffer.from(buf));
+                        const imgbuf = converted.data;
+                        const mime = converted.mime;
                         try {
                             const l4 = await parseQuote();
                             let msg;
@@ -690,11 +672,11 @@ new Cli({
                             if (l4) {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        msgbuf,
+                                        imgbuf,
                                         target,
                                     );
                                     return await bot.sendQuotedGroupMessage(
-                                        [Plain(`${name}:`), Image(image, "image/gif")],
+                                        [Plain(`${name}:`), Image(image, mime)],
                                         qq_id,
                                         l4[1],
                                     );
@@ -702,11 +684,11 @@ new Cli({
                             } else {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        msgbuf,
+                                        imgbuf,
                                         target,
                                     );
                                     return await bot.sendGroupMessage(
-                                        [Plain(`${name}:`), Image(image, "image/gif")],
+                                        [Plain(`${name}:`), Image(image, mime)],
                                         qq_id,
                                     );
                                 });
