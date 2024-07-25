@@ -14,7 +14,7 @@ import {
 import type { MatrixProfileInfo } from "matrix-bot-sdk";
 import fetch from "node-fetch";
 import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
-import { LocalStorage } from "node-localstorage";
+import { LocalStorage } from "./storage";
 import Mirai from "node-mirai-sdk";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
@@ -26,7 +26,7 @@ import  { Plain, At, Image } from "./satori-client";
 
 const config = readConfig();
 
-const localStorage = new LocalStorage("./extra-storage.db");
+const localStorage = new LocalStorage("./extra-storage-sqlite.db");
 
 const BOT_UPDATE_VERSION = 1;
 
