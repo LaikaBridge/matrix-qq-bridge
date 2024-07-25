@@ -25,7 +25,7 @@ import sharp from "sharp"
 import ffmpeg from "fluent-ffmpeg"
 import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
-import { convertToQQ, guessMime } from "./image-convert";
+import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime } from "./image-convert";
 
 const config = readConfig();
 
@@ -1024,16 +1024,17 @@ new Cli({
 
                     try {
                         const img = await fetch(url, { agent });
-                        const buffer = await img.arrayBuffer();
+                        const buffer = Buffer.from(await img.arrayBuffer());
+                        const converted = await convertToMX(buffer);
                         const content = await intent.uploadContent(
-                            Buffer.from(buffer),
+                            converted.data
                         );
                         const { event_id } = await intent.sendMessage(mx_id, {
                             msgtype: "m.image",
                             url: content,
-                            body: `QQ图片.png`,
+                            body: `QQ图片.${SUPPORTED_MIMES[converted.mime].format}`,
                             info: {
-                                mimetype: "image/png",
+                                mimetype: converted.mime,
                             },
                         });
 
