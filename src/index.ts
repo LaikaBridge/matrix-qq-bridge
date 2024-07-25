@@ -21,8 +21,10 @@ import throttledQueue from "throttled-queue";
 import { readConfig } from "./config";
 import { MiraiSatoriAdaptor } from "./satori-client";
 import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./satori-client";
-
-import  { Plain, At, Image } from "./satori-client";
+import sharp from "sharp"
+import ffmpeg from "fluent-ffmpeg"
+import concatStream from "concat-stream"
+import { Plain, At, Image } from "./satori-client";
 
 const config = readConfig();
 
@@ -584,6 +586,142 @@ new Cli({
                             console.log(err);
                         }
                         //const url = intent.down
+                    } else if (event.type == "m.sticker") {
+                        /**
+                         * 大概解释一下发生了什么
+                         * `m.sticker`里面的mimetype不仅可以是静态图，也可以是动态图
+                         * (telegram官方预制的表情会直接变成gif而不是转换到mp4发到mx上，原因未知)
+                         * 并且没有fi.mau.telegram.animated_sticker字段
+                         */
+                        try {
+                            const url = intent.matrixClient.mxcToHttp(event.content.url as string);
+                            const req = await fetch(url);
+                            const buf = await req.arrayBuffer();
+                            let mime = event.content.mimetype as string;
+                            let imgbuf: ArrayBuffer;
+                            if (event.content.mimetype != "image/gif") {
+                                const b = await sharp(buf).png().toBuffer();
+                                imgbuf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+                                mime = "image/png";
+                            } else {
+                                imgbuf = buf;
+                            }
+
+                            let msg;
+                            const l4 = await parseQuote();
+                            const target: GroupTarget = {
+                                type: "GroupMessage",
+                                sender: {
+                                    group: {
+                                        id: qq_id,
+                                    },
+                                },
+                            };
+                            if (l4) {
+                                msg = await throttle(async () => {
+                                    const image = await bot.uploadImage(
+                                        Buffer.from(imgbuf),
+                                        target,
+                                    );
+                                    return await bot.sendQuotedGroupMessage(
+                                        [Plain(`${name}:`), Image(image, mime)],
+                                        qq_id,
+                                        l4[1],
+                                    );
+                                });
+                            } else {
+                                msg = await throttle(async () => {
+                                    const image = await bot.uploadImage(
+                                        Buffer.from(imgbuf),
+                                        target,
+                                    );
+                                    return await bot.sendGroupMessage(
+                                        [Plain(`${name}:`), Image(image, mime)],
+                                        qq_id,
+                                    );
+                                });
+                            }
+
+                            const source: [string, string] = [
+                                String(qq_id),
+                                String(msg.messageId),
+                            ];
+                            const event_id = event.event_id;
+                            await addMatrix2QQMsgMapping(event_id, source);
+                            await addQQ2MatrixMsgMapping(source, event_id);
+                        } catch (err) {
+                            console.log(err);
+                        }
+                    } else if (event.type == "m.room.message" && ((event.content.info as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
+                        /**
+                         * gjz老师昨天发的星野爱动图可以match如下pattern
+                         * 为啥有的animated sticker转成gif有的转成mp4???
+                         */
+                        const url = intent.matrixClient.mxcToHttp(event.content.url as string);
+                        let msgbuf: Buffer;
+                        function createPipe() {
+                            let res: (arg0: Buffer) => void, rej;
+                            const prom = new Promise((resolve, reject) => {
+                                res = resolve;
+                                rej = reject;
+                            });
+                            let cs = concatStream((buf) => res(buf));
+                            return { stream: cs, promise: prom };
+                        }
+                        let pres = createPipe();
+                        let pipe = ffmpeg().addInput(url).format("gif").on("error", function (err, _, stderr) {
+                            console.log(`Error on ffmpeg: ${err}`);
+                            console.log(`stderr: ${stderr}`);
+                        }).on("end", function () {
+                            console.log("ffmpeg convert succeeded");
+                        }).pipe(pres.stream, { end: true });
+                        msgbuf = await pres.promise as Buffer;
+                        try {
+                            const l4 = await parseQuote();
+                            let msg;
+                            const target: GroupTarget = {
+                                type: "GroupMessage",
+                                sender: {
+                                    group: {
+                                        id: qq_id,
+                                    },
+                                },
+                            };
+                            if (l4) {
+                                msg = await throttle(async () => {
+                                    const image = await bot.uploadImage(
+                                        msgbuf,
+                                        target,
+                                    );
+                                    return await bot.sendQuotedGroupMessage(
+                                        [Plain(`${name}:`), Image(image, "image/gif")],
+                                        qq_id,
+                                        l4[1],
+                                    );
+                                });
+                            } else {
+                                msg = await throttle(async () => {
+                                    const image = await bot.uploadImage(
+                                        msgbuf,
+                                        target,
+                                    );
+                                    return await bot.sendGroupMessage(
+                                        [Plain(`${name}:`), Image(image, "image/gif")],
+                                        qq_id,
+                                    );
+                                });
+                            }
+
+                            const source: [string, string] = [
+                                String(qq_id),
+                                String(msg.messageId),
+                            ];
+                            const event_id = event.event_id;
+                            await addMatrix2QQMsgMapping(event_id, source);
+                            await addQQ2MatrixMsgMapping(source, event_id);
+                        } catch (error) {
+                            console.log(error);
+                        }
                     } else if (event.type == "m.room.redaction") {
                         try {
                             const ev = await getMatrix2QQMsgMapping(
@@ -672,12 +810,12 @@ new Cli({
 
                 try {
                     await superintent;
-                } catch (err) {}
+                } catch (err) { }
                 try {
                     await superintent.join(room_id);
-                } catch (err) {}
+                } catch (err) { }
                 await superintent.invite(room_id, bot);
-            } catch (err) {}
+            } catch (err) { }
         }
         bot.onEvent("groupRecall", async (message) => {
             const group_id = message.group.id;
@@ -901,6 +1039,7 @@ new Cli({
                         String(group_id),
                         source!,
                     ];
+
                     try {
                         const img = await fetch(url, { agent });
                         const buffer = await img.arrayBuffer();
@@ -915,6 +1054,7 @@ new Cli({
                                 mimetype: "image/png",
                             },
                         });
+
                         await addMatrix2QQMsgMapping(event_id, qqsource);
                     } catch (err) {
                         const { event_id } = await intent.sendText(

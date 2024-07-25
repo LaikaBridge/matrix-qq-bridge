@@ -1,15 +1,15 @@
 import { readFileSync } from "fs"
 import YAML from "yaml"
-interface MiraiConfig{
+interface MiraiConfig {
     host: string
     verifyKey: string
     qq: number
 }
-interface MatrixRegistration{
+interface MatrixRegistration {
     path: string
     localpart: string
 }
-interface MatrixConfig{
+interface MatrixConfig {
     homeserver: string
     domain: string
     listenIP: string
@@ -18,34 +18,34 @@ interface MatrixConfig{
     namePrefix: string
 }
 
-interface PuppetCustomization{
+interface PuppetCustomization {
     adminName: string
     adminAvatar: string
     customizationVersion: number
 }
-interface GroupBridgeRule{
+interface GroupBridgeRule {
     mx: string
     qq: number
 }
-interface SocksProxyConfig{
+interface SocksProxyConfig {
     enable: boolean
     url: string
 }
-interface RembgConfig{
+interface RembgConfig {
     enable: boolean
     url: string
 }
 
-interface Config{
+interface Config {
     mirai: MiraiConfig
     matrix: MatrixConfig
     bridgedGroups: GroupBridgeRule[]
     socksProxy: SocksProxyConfig
     puppetCustomization: PuppetCustomization
-//    rembgService: RembgConfig
+    //    rembgService: RembgConfig
 }
 
-export function readConfig(): Config{
+export function readConfig(): Config {
     const file = readFileSync("config.yaml", "utf-8");
     const config = YAML.parse(file);
     return config;
