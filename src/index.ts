@@ -238,6 +238,7 @@ const INTENT_MEMBERSHIP_STORE = (() => {
 console.log(INTENT_MEMBERSHIP_STORE.getMembership);
 const launch_date = new Date();
 const matrixAdminId = `@${config.matrix.namePrefix}_admin:${config.matrix.domain}`;
+const drivingGroups = new Set<string>();
 const matrixPuppetId = (id: string | number) =>
     `@${config.matrix.namePrefix}_qq_${id}:${config.matrix.domain}`;
 new Cli({
@@ -470,6 +471,29 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.text"
                     ) {
+                        // drive and undrive
+                        const driveKey = `is_driving:${event.room_id}`;
+                        const isAlreadyDriving = localStorage.getItem(driveKey) === "yes";
+                        if(event.content.body == "!drive"){
+                            if(isAlreadyDriving){
+                                intent.sendText(event.room_id, "驾驶模式已经是开启状态！");
+                            }else{
+                                intent.sendText(event.room_id, "已开启驾驶模式！");
+                                localStorage.setItem(driveKey, "yes");
+                            }
+                            return;
+                        }else if(event.content.body == "!undrive"){
+                            if(isAlreadyDriving){
+                                intent.sendText(event.room_id, "已关闭驾驶模式！");
+                                localStorage.setItem(driveKey, "no");
+                            }else{
+                                intent.sendText(event.room_id, "驾驶模式已经是关闭状态！");
+                            }
+                            return;
+                        }else if(isAlreadyDriving){
+                            // driving mode. don't forward to qq.
+                            return;
+                        }
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
