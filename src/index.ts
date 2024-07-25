@@ -467,13 +467,16 @@ new Cli({
                         onNode(html);
                         return chain;
                     }
+                    // drive and undrive
+                    const driveKey = `is_driving:${event.room_id}`;
+                    const isAlreadyDriving = localStorage.getItem(driveKey) === "yes";
                     if (
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.text"
                     ) {
-                        // drive and undrive
-                        const driveKey = `is_driving:${event.room_id}`;
-                        const isAlreadyDriving = localStorage.getItem(driveKey) === "yes";
+                        
+                        
+                        
                         if(event.content.body == "!drive"){
                             if(isAlreadyDriving){
                                 intent.sendText(event.room_id, "驾驶模式已经是开启状态！");
@@ -490,9 +493,6 @@ new Cli({
                                 intent.sendText(event.room_id, "驾驶模式已经是关闭状态！");
                             }
                             return;
-                        }else if(isAlreadyDriving){
-                            // driving mode. don't forward to qq.
-                            return;
                         }
                     }
                     // not driving
@@ -500,6 +500,10 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.text"
                     ) {
+                        if(isAlreadyDriving){
+                            // driving mode. don't forward to qq.
+                            return;
+                        }
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
@@ -565,6 +569,10 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.image"
                     ) {
+                        if(isAlreadyDriving){
+                            // driving mode. don't forward to qq.
+                            return;
+                        }
                         try {
                             const url = intent.matrixClient.mxcToHttp(
                                 event.content.url as string,
@@ -618,6 +626,10 @@ new Cli({
                         }
                         //const url = intent.down
                     } else if (event.type == "m.sticker") {
+                        if(isAlreadyDriving){
+                            // driving mode. don't forward to qq.
+                            return;
+                        }
                         /**
                          * 大概解释一下发生了什么
                          * `m.sticker`里面的mimetype不仅可以是静态图，也可以是动态图
@@ -678,6 +690,10 @@ new Cli({
                             console.log(err);
                         }
                     } else if (event.type == "m.room.message" && ((event.content.info as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
+                        if(isAlreadyDriving){
+                            // driving mode. don't forward to qq.
+                            return;
+                        }
                         /**
                          * 为啥有的animated sticker转成gif有的转成mp4???
                          */
@@ -735,6 +751,7 @@ new Cli({
                             console.log(error);
                         }
                     } else if (event.type == "m.room.redaction") {
+                        // don't care about drive mode.
                         try {
                             const ev = await getMatrix2QQMsgMapping(
                                 event.redacts as string,
