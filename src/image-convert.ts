@@ -48,10 +48,21 @@ export async function guessMime(buffer: Buffer){
     if(!mimeInfo) throw new Error("Unsupported mime type");
     return { mime: mimeInfo.mime, data: buffer };
 }
+export function withResolvers<T, E>(){
+    let resolve!: (a: T)=>void, reject!: (a: E)=>void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+
+}
 export async function convertTo(image: MimedImage, target: Mime): Promise<MimedImage>{
     const mimeInfo = SUPPORTED_MIMES[target];
     const srcMimeInfo = SUPPORTED_MIMES[image.mime];
     const stream = createPipe();
+    const ffmpegFin = withResolvers();
     ffmpeg()
         .addInput(Readable.from(image.data))
         .format(mimeInfo.ffmpegCodec[0])
@@ -59,12 +70,14 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
         .on("error", (err) => {
             console.log("ffmpeg conversion failed");
             console.error(err);
-            stream.rej(err);
+            ffmpegFin.reject(err);
         })
         .on("end", () => {
             console.log("ffmpeg conversion successful");
+            ffmpegFin.resolve(0);
         })
         .pipe(stream.stream, { end: true });
+    await ffmpegFin.promise;
     const outputBuffer = await stream.promise;
     return { mime: target, data: outputBuffer };
 }
