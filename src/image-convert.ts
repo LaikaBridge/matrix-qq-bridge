@@ -18,8 +18,9 @@ class MimeInfo{
 }
 
 export const SUPPORTED_MIMES = {
+    "image/jpeg": new MimeInfo("image/jpeg", "jpeg", false, ["image2", "jpeg"]),
     "image/png": new MimeInfo("image/png", "png", false, ["image2", "png"]),
-    "image/gif": new MimeInfo("image/gif", "gif", true, ["image2", "gif"]),
+    "image/gif": new MimeInfo("image/gif", "gif", true, ["gif", "gif"]),
     "image/webp": new MimeInfo("image/webp", "webp", false, ["image2", "webp"]),
     "video/webm": new MimeInfo("video/webm", "webm", true, ["webm", "vp9"]),
     "video/mp4": new MimeInfo("video/mp4", "mp4", true, ["mp4", "h264"]),
