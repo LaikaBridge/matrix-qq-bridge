@@ -92,9 +92,11 @@ export abstract class Target{
             return this.convert(mimedImage);
         }
         const mime = image.mime;
+        console.log("Received mime: ", mime, " compatible: ", this.compatibleMimes());
         if(this.compatibleMimes().indexOf(mime)!=-1){
             return image;
         }
+        console.log("Converting to preferred mime ", this.preferredMime(SUPPORTED_MIMES[mime].isAnimated));
         const targetMime = this.preferredMime(SUPPORTED_MIMES[mime].isAnimated);
         return convertTo(image, targetMime);
     }
