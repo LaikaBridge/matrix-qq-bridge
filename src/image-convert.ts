@@ -116,7 +116,7 @@ export class MXTarget extends Target{
         return animated? "image/gif" : "image/png";
     }
     compatibleMimes(): Mime[]{
-        return ["video/webm", "image/png", "image/jpeg", "video/mp4"];
+        return ["video/webm", "image/png", "image/jpeg", "video/mp4", "image/gif"];
     }
 }
 
