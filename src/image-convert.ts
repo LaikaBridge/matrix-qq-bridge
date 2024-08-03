@@ -89,7 +89,7 @@ export abstract class Target{
     async convert(image: MimedImage | Buffer): Promise<MimedImage>{
         if(image instanceof Buffer){
             const mimedImage = await guessMime(image);
-            return this.convert(image);
+            return this.convert(mimedImage);
         }
         const mime = image.mime;
         if(this.compatibleMimes().indexOf(mime)!=-1){
