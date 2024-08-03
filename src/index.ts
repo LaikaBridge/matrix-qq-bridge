@@ -1076,10 +1076,11 @@ new Cli({
                         const content = await intent.uploadContent(
                             converted.data
                         );
+                        const mimeInfo = SUPPORTED_MIMES[converted.mime];
                         const { event_id } = await intent.sendMessage(mx_id, {
-                            msgtype: "m.image",
+                            msgtype: mimeInfo.matrixMsgType,
                             url: content,
-                            body: `QQ图片.${SUPPORTED_MIMES[converted.mime].format}`,
+                            body: `QQ图片.${mimeInfo.format}`,
                             info: {
                                 mimetype: converted.mime,
                             },

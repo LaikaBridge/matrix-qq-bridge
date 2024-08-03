@@ -7,13 +7,14 @@ class MimeInfo{
     mime: Mime;
     format: string;
     isAnimated: boolean;
+    matrixMsgType: string;
     ffmpegCodec: FFMpegCodec;
-    constructor(mime: string, format: string, isAnimated: boolean, ffmpegCodec: FFMpegCodec){
+    constructor(mime: string, format: string, isAnimated: boolean, ffmpegCodec: FFMpegCodec, matrixMsgType = "m.image"){
         this.mime = mime as Mime;
         this.format = format;
         this.isAnimated = isAnimated;
-
         this.ffmpegCodec = ffmpegCodec;
+        this.matrixMsgType = matrixMsgType;
     }
 }
 
@@ -22,8 +23,8 @@ export const SUPPORTED_MIMES = {
     "image/png": new MimeInfo("image/png", "png", false, ["image2", "png"]),
     "image/gif": new MimeInfo("image/gif", "gif", true, ["gif", "gif"]),
     "image/webp": new MimeInfo("image/webp", "webp", false, ["image2", "webp"]),
-    "video/webm": new MimeInfo("video/webm", "webm", true, ["webm", "vp9"]),
-    "video/mp4": new MimeInfo("video/mp4", "mp4", true, ["mp4", "h264"]),
+    "video/webm": new MimeInfo("video/webm", "webm", true, ["webm", "vp9"], "m.video"),
+    "video/mp4": new MimeInfo("video/mp4", "mp4", true, ["mp4", "h264"], "m.video"),
 } as const;
 export const SUPPORTED_MIME_LIST = Object.keys(SUPPORTED_MIMES) as Mime[];
 export type Mime = keyof typeof SUPPORTED_MIMES;
@@ -81,16 +82,45 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
     const outputBuffer = await stream.promise;
     return { mime: target, data: outputBuffer };
 }
+export abstract class Target{
+    abstract preferredMime(animated: boolean): Mime;
+    abstract compatibleMimes(): Mime[];
+
+    async convert(image: MimedImage | Buffer): Promise<MimedImage>{
+        if(image instanceof Buffer){
+            const mimedImage = await guessMime(image);
+            return this.convert(image);
+        }
+        const mime = image.mime;
+        if(this.compatibleMimes().indexOf(mime)!=-1){
+            return image;
+        }
+        const targetMime = this.preferredMime(SUPPORTED_MIMES[mime].isAnimated);
+        return convertTo(image, targetMime);
+    }
+
+}
+
+export class QQTarget extends Target{
+    preferredMime(animated: boolean): Mime{
+        return animated? "image/gif" : "image/png";
+    }
+    compatibleMimes(): Mime[]{
+        return ["image/gif", "image/png", "image/jpeg"];
+    }
+}
+export class MXTarget extends Target{
+    preferredMime(animated: boolean): Mime{
+        return animated? "image/gif" : "image/png";
+    }
+    compatibleMimes(): Mime[]{
+        return ["video/webm", "image/png", "image/jpeg", "video/mp4"];
+    }
+}
 
 export async function convertToQQ(buffer: Buffer){
-    const mimedImage = await guessMime(buffer);
-    const mime = SUPPORTED_MIMES[mimedImage.mime];
-    const targetMime = mime.isAnimated? "image/gif" : "image/png";
-    return convertTo(mimedImage, targetMime);
+    return (new QQTarget()).convert(buffer);
 }
 export async function convertToMX(buffer: Buffer){
-    const mimedImage = await guessMime(buffer);
-    const mime = SUPPORTED_MIMES[mimedImage.mime];
-    const targetMime = mime.isAnimated? "video/webm" : "image/png";
-    return convertTo(mimedImage, targetMime);
+    return (new MXTarget()).convert(buffer);
 }
