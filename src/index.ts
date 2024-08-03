@@ -689,7 +689,7 @@ new Cli({
                         } catch (err) {
                             console.log(err);
                         }
-                    } else if (event.type == "m.room.message" && ((event.content.info as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
+                    } else if (event.type == "m.room.message" && ((event?.content?.info ?? {} as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
                         if(isAlreadyDriving){
                             // driving mode. don't forward to qq.
                             return;
