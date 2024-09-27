@@ -25,7 +25,7 @@ import sharp from "sharp"
 import ffmpeg from "fluent-ffmpeg"
 import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
-import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime } from "./image-convert";
+import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
 
 const config = readConfig();
 
@@ -253,6 +253,7 @@ new Cli({
         callback(reg);
     },
     run: async (port, config_) => {
+        const running = withResolvers();
         const cache = new MembershipCache();
         const prev_name_dict: Record<
             string,
@@ -844,9 +845,16 @@ new Cli({
                     await superintent.join(room_id);
                 } catch (err) { }
                 await superintent.invite(room_id, bot);
+                try{
+                    const intent = bridge.getIntent(bot);
+                    await intent.join(room_id);
+                }catch(err) {
+                    console.log("Error while joining", err);
+                }
             } catch (err) { }
         }
         bot.onEvent("groupRecall", async (message) => {
+            await running.promise;
             const group_id = message.group.id;
             const room_id = findMxByQQ(group_id);
             if (room_id === null) return;
@@ -867,6 +875,7 @@ new Cli({
         });
         // 接受消息,发送消息(*)
         bot.onMessage(async (message) => {
+            await running.promise;
             if (message.type == "GroupMessage") {
                 const g = message.sender as GroupSender;
                 const group_id = g.group.id;
@@ -1009,7 +1018,7 @@ new Cli({
                     if (b !== undefined) await intent.setAvatarUrl(b);
                 }
                 console.log("DEBUG", (intent as any).opts);
-                const member = await intent.getStateEvent(
+                const member = await superintent.getStateEvent(
                     mx_id,
                     "m.room.member",
                     key,
@@ -1027,7 +1036,7 @@ new Cli({
                         member,
                     );
                 }
-                const member2 = await intent.getStateEvent(
+                const member2 = await superintent.getStateEvent(
                     mx_id,
                     "m.room.member",
                     key,
@@ -1135,6 +1144,7 @@ new Cli({
                         String(customizationVersion),
                     );
                 }
+                running.resolve(undefined);
             });
     },
 }).run();
