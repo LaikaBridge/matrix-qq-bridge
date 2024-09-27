@@ -264,6 +264,7 @@ new Cli({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
             registration: config.matrix.registration.path,
+            /*
             membershipCache: cache,
             intentOptions: {
                 bot: {
@@ -273,6 +274,7 @@ new Cli({
                     backingStore: INTENT_MEMBERSHIP_STORE,
                 },
             },
+            */
             controller: {
                 onUserQuery: (queriedUser) => {
                     return {}; // auto-provision users with no additonal data
