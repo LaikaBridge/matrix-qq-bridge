@@ -225,6 +225,7 @@ class PersistentIntentBackingStore {
         this.storePowerLevelContent(roomId, content);
     }
 }
+/*
 const INTENT_MEMBERSHIP_STORE = (() => {
     const store = new PersistentIntentBackingStore();
     return {
@@ -235,7 +236,8 @@ const INTENT_MEMBERSHIP_STORE = (() => {
         setPowerLevelContent: store.setPowerLevelContent.bind(store),
     };
 })();
-console.log(INTENT_MEMBERSHIP_STORE.getMembership);
+*/
+//console.log(INTENT_MEMBERSHIP_STORE.getMembership);
 const launch_date = new Date();
 const matrixAdminId = `@${config.matrix.namePrefix}_admin:${config.matrix.domain}`;
 const drivingGroups = new Set<string>();
@@ -254,7 +256,7 @@ new Cli({
     },
     run: async (port, config_) => {
         const running = withResolvers();
-        const cache = new MembershipCache();
+        //const cache = new MembershipCache();
         const prev_name_dict: Record<
             string,
             Record<string, { name: string; avatar: string }>
@@ -384,10 +386,11 @@ new Cli({
                         prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
                     if (room_prev_name_dict[user_id] === undefined) {
-                        const profile = cache.getMemberProfile(
+                        const profile = {displayname: undefined};
+                        /*const profile = cache.getMemberProfile(
                             event.room_id,
                             event.sender,
-                        );
+                        );*/
                         if (profile.displayname === undefined) {
                             const state = await intent.getStateEvent(
                                 room_id,
@@ -402,12 +405,14 @@ new Cli({
                                 ),
                             };
                         } else {
+                            /*
                             room_prev_name_dict[user_id] = {
                                 name: profile.displayname?.trim() ?? name,
                                 avatar: await getAvatarByMxUrl(
                                     profile.avatar_url,
                                 ),
                             };
+                            */
                         }
                     }
                     name = room_prev_name_dict[user_id].name ?? name;
@@ -837,15 +842,20 @@ new Cli({
             );
         }
         async function joinRoom(bot: string, room_id: string) {
+            console.log("joinRoom", bot, room_id);
             try {
                 const superintent = bridge.getIntent(matrixAdminId);
-
+                console.log("joinRoom getting super intent")
                 try {
                     await superintent;
-                } catch (err) { }
+                } catch (err) {
+                    console.log("joinRoom superintent err", err)
+                }
                 try {
                     await superintent.join(room_id);
-                } catch (err) { }
+                } catch (err) {
+                    console.log("joinRoom join err", err)
+                }
                 await superintent.invite(room_id, bot);
                 try{
                     const intent = bridge.getIntent(bot);
@@ -853,7 +863,9 @@ new Cli({
                 }catch(err) {
                     console.log("Error while joining", err);
                 }
-            } catch (err) { }
+            } catch (err) {
+                console.log("joinRoom err", err);
+            }
         }
         bot.onEvent("groupRecall", async (message) => {
             await running.promise;
