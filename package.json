@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "run": "esbuild-dev src/index.ts"
+    "run": "esbuild-dev src/index.ts",
+    "build:wasm": "cd wasm && wasm-pack build -m no-install -t nodejs"
   },
   "author": "",
   "license": "ISC",
