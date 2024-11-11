@@ -25,6 +25,7 @@
         })
         wasm-bindgen-cli
         wasm-pack
+        just
       ];
     };
   };
