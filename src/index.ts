@@ -26,6 +26,7 @@ import ffmpeg from "fluent-ffmpeg"
 import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
+import { calc_dominant_color } from "../wasm/pkg";
 
 const config = readConfig();
 
@@ -46,7 +47,7 @@ const colors = {
 };
 
 //converse rgb to lab
-function rgb2lab(rgb: number[]): number[] {
+function rgb2lab(rgb: Uint8Array | number[]): number[] {
     let r = rgb[0] / 255,
         g = rgb[1] / 255,
         b = rgb[2] / 255,
@@ -342,39 +343,14 @@ new Cli({
                         if (!mxurl) return "";
                         const url = intent.matrixClient.mxcToHttp(mxurl);
                         const req = await fetch(url);
-                        const buffer = await req.arrayBuffer();
-                        const img = await Jimp.read(Buffer.from(buffer));
-                        const colorCount: Record<string, number> = {};
-                        for (let x = 0; x < img.getWidth(); x++) {
-                            for (let y = 0; y < img.getHeight(); y++) {
-                                const { r, g, b, a } = Jimp.intToRGBA(
-                                    img.getPixelColor(x, y),
-                                );
-                                const color256 = [r, g, b].map(
-                                    (x) => x * (a / 255) + 255 * (1 - a / 255),
-                                );
-                                const color16 = color256.map((x) =>
-                                    Math.round((x / 255) * 15),
-                                );
-                                colorCount[JSON.stringify(color16)] =
-                                    (colorCount[JSON.stringify(color16)] ?? 0) +
-                                    1;
-                            }
+                        const buffer = new Uint8Array(await req.arrayBuffer());
+                        let rgb16;
+                        try {
+                          rgb16 = calc_dominant_color(buffer);
+                        } catch (e) {
+                          console.error(e);
+                          rgb16 = [0, 0, 0]
                         }
-                        const rgb16 = Object.entries(colorCount)
-                            .map((kv) => {
-                                const [k, count] = kv;
-                                const [r, g, b]: number[] = JSON.parse(k);
-                                return {
-                                    color16: [r, g, b],
-                                    weight:
-                                        /* chroma */ (Math.max(r, g, b) -
-                                            Math.min(r, g, b)) *
-                                        count,
-                                };
-                            })
-                            .sort((a, b) => a.weight - b.weight)
-                            .reverse()[0].color16;
                         const lab = rgb2lab(rgb16.map((x) => (x / 15) * 255));
                         return Object.entries(colors).sort(
                             (a, b) =>
