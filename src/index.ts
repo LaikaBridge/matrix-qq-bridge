@@ -465,7 +465,7 @@ new Cli({
                             (async ()=>{
                                 const resp = await mumbleBridgePlugin(event.content.body as string);
                                 await intent.sendText(event.room_id, resp);
-                            })
+                            })()
                             return;
                         }
                         if(event.content.body == "!drive"){
@@ -1046,7 +1046,7 @@ new Cli({
                         (async ()=>{
                             const resp = await mumbleBridgePlugin(msg);
                             await bot.sendGroupMessage([Plain(resp)], message.sender.group.id);
-                        })
+                        })()
                         return;
                     }
                     const data: any = {
