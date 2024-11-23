@@ -1,6 +1,7 @@
-import * as jayson from "jayson/promise";
 import YAML from "yaml"
 import { readFileSync } from "fs"
+import type { MumbleBridgeRPC } from "./mumble-bridge-rpc";
+import { rpcClient } from "typed-rpc";
 interface MumbleBridgePluginConfig{
     serverAddr: string,
     password: string,
@@ -10,11 +11,9 @@ interface MumbleBridgePluginConfig{
 const file = readFileSync("mumble-bridge-config.yaml", "utf-8");
 const config: MumbleBridgePluginConfig = YAML.parse(file);
 
-const client = jayson.Client.websocket({
-    url: `ws://${config.rpcServerAddr}:${config.rpcServerPort}`
+const client = rpcClient<MumbleBridgeRPC>({
+    url: `http://${config.rpcServerAddr}:${config.rpcServerPort}`
 });
-type GetUserResp = {channel: string, users: string[]}[];
-
 export async function mumbleBridgePlugin(x: string): Promise<string>{
     if(x==="!mumble info"){
         return [
@@ -23,7 +22,7 @@ export async function mumbleBridgePlugin(x: string): Promise<string>{
         ].join("\n")
     }else if (x==="!mumble list"){
         try{
-            const all_members: GetUserResp = (await client.request("getUsers", [])).result;
+            const all_members = await client.getUsers();
             if(all_members.length===0){
                 return "当前没有用户在线"
             }else{
