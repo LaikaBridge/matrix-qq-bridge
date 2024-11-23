@@ -8,9 +8,8 @@ interface MumbleBridgePluginConfig{
 }
 const file = readFileSync("mumble-bridge-config.yaml", "utf-8");
 const config: MumbleBridgePluginConfig = YAML.parse(file);
-const client = jayson.client.http({
-    host: config.rpcServerAddr,
-});
+
+const client = jayson.Client.http(config.rpcServerAddr as any);
 type GetUserResp = {channel: string, users: string[]}[];
 
 export async function mumbleBridgePlugin(x: string): Promise<string>{
