@@ -5,11 +5,14 @@ interface MumbleBridgePluginConfig{
     serverAddr: string,
     password: string,
     rpcServerAddr: string,
+    rpcServerPort: number
 }
 const file = readFileSync("mumble-bridge-config.yaml", "utf-8");
 const config: MumbleBridgePluginConfig = YAML.parse(file);
 
-const client = jayson.Client.http(config.rpcServerAddr as any);
+const client = jayson.Client.websocket({
+    url: `ws://${config.rpcServerAddr}:${config.rpcServerPort}`
+});
 type GetUserResp = {channel: string, users: string[]}[];
 
 export async function mumbleBridgePlugin(x: string): Promise<string>{
@@ -20,11 +23,11 @@ export async function mumbleBridgePlugin(x: string): Promise<string>{
         ].join("\n")
     }else if (x==="!mumble list"){
         try{
-            const all_members: GetUserResp = await client.request("getUsers", []);
+            const all_members: GetUserResp = (await client.request("getUsers", [])).result;
             if(all_members.length===0){
                 return "当前没有用户在线"
             }else{
-                return "当前Mumble用户："+all_members.map((x)=>x.users.join(",")).join("\n")
+                return "当前Mumble用户：\n"+all_members.map((x)=>`${x.channel}: ${x.users.join(",")}`).join("\n")
             }
         }catch(e){
             console.error(e)
