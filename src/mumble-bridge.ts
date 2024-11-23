@@ -20,11 +20,16 @@ export async function mumbleBridgePlugin(x: string): Promise<string>{
             `第一次登录密码 ${config.password}`
         ].join("\n")
     }else if (x==="!mumble list"){
-        const all_members: GetUserResp = await client.request("getUsers", []);
-        if(all_members.length===0){
-            return "当前没有用户在线"
-        }else{
-            return "当前Mumble用户："+all_members.map((x)=>x.users.join(",")).join("\n")
+        try{
+            const all_members: GetUserResp = await client.request("getUsers", []);
+            if(all_members.length===0){
+                return "当前没有用户在线"
+            }else{
+                return "当前Mumble用户："+all_members.map((x)=>x.users.join(",")).join("\n")
+            }
+        }catch(e){
+            console.error(e)
+            return "获取用户列表失败"
         }
     }else{
         return [
