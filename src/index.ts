@@ -27,6 +27,7 @@ import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
 import { calc_dominant_color } from "../wasm/pkg";
+import { mumbleBridgePlugin } from "./mumble-bridge";
 
 const config = readConfig();
 
@@ -460,7 +461,13 @@ new Cli({
                     ) {
                         
                         
-                        
+                        if((event.content.body as string).startsWith("!mumble")){
+                            (async ()=>{
+                                const resp = await mumbleBridgePlugin(event.content.body as string);
+                                await intent.sendText(event.room_id, resp);
+                            })
+                            return;
+                        }
                         if(event.content.body == "!drive"){
                             if(isAlreadyDriving){
                                 intent.sendText(event.room_id, "驾驶模式已经是开启状态！");
@@ -1035,6 +1042,13 @@ new Cli({
                 console.log("Member after", member2);
                 console.log("uploaded");
                 if (msg) {
+                    if(msg.startsWith("!mumble")){
+                        (async ()=>{
+                            const resp = await mumbleBridgePlugin(msg);
+                            await bot.sendGroupMessage([Plain(resp)], message.sender.group.id);
+                        })
+                        return;
+                    }
                     const data: any = {
                         body: msg,
                         format: "org.matrix.custom.html",
