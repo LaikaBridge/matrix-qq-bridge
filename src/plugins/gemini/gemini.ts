@@ -14,7 +14,8 @@ export async function invoke(req: GeminiReq): Promise<GeminiRes>{
             "Content-Type": "application/json",
             "X-Custom-PSK": config.psk
         },
-        body: JSON.stringify(req)
+        body: JSON.stringify(req),
+        method: "POST"
     });
     return await result.json();
 }
