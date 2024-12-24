@@ -9,6 +9,7 @@ import {
     type Intent,
     MembershipCache,
     type PowerLevelContent,
+    StateLookupEvent,
     type UserMembership,
 } from "matrix-appservice-bridge";
 import type { MatrixProfileInfo } from "matrix-bot-sdk";
@@ -27,8 +28,8 @@ import concatStream from "concat-stream"
 import { Plain, At, Image } from "./satori-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
 import { calc_dominant_color } from "../wasm/pkg";
-import { mumbleBridgePlugin } from "./mumble-bridge";
-
+import { mumbleBridgePlugin } from "./plugins/mumble/mumble-bridge";
+import { pluginGeminiMessage } from "./plugins/gemini/gemini";
 const config = readConfig();
 
 const localStorage = new LocalStorage("./extra-storage-sqlite.db");
@@ -395,6 +396,7 @@ new Cli({
                     name = room_prev_name_dict[user_id].name ?? name;
                     avatar = room_prev_name_dict[user_id].avatar ?? avatar;
                     name = name || user_id;
+                    const name_without_avatar = name;
                     if (avatar) {
                         name = `${avatar} ${name}`;
                     }
@@ -498,12 +500,14 @@ new Cli({
                         //let quote = null;
                         const l4 = await parseQuote();
                         let msg;
+                        let msgText: string;
                         if (l4 !== null) {
                             if (
                                 event.content.format == "org.matrix.custom.html"
                             ) {
                                 const s = event.content
                                     .formatted_body as string;
+                                msgText = s;
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
                                         htmlToMsgChain(s),
@@ -513,6 +517,7 @@ new Cli({
                                 });
                             } else {
                                 const s = event.content.body as string;
+                                msgText = s;
                                 let lines = s.split("\n");
                                 if (
                                     lines[0].startsWith("> ") &&
@@ -534,6 +539,7 @@ new Cli({
                             ) {
                                 const s = event.content
                                     .formatted_body as string;
+                                msgText = s;
                                 msg = await throttle(async () => {
                                     return await bot.sendGroupMessage(
                                         htmlToMsgChain(s),
@@ -541,6 +547,7 @@ new Cli({
                                     );
                                 });
                             } else {
+                                msgText = event.content.body as string;
                                 msg = await throttle(async () => {
                                     return await bot.sendGroupMessage(
                                         `${name}: ${event.content.body}`,
@@ -554,6 +561,27 @@ new Cli({
                             String(msg.messageId),
                         ];
                         const event_id = event.event_id;
+
+                        const room_name = (await intent.getStateEvent(event.room_id, "m.room.name", "")).name;
+                        const gemini_outcome = await pluginGeminiMessage(event.room_id, room_name, name_without_avatar, intent.userId, event_id, msgText);
+                        const superintent = bridge.getIntent(matrixAdminId);
+                        if(gemini_outcome){
+                            const gemini_ev = await superintent.sendMessage(event.room_id, {
+                                body: gemini_outcome,
+                                format: "org.matrix.custom.html",
+                                formatted_body : gemini_outcome,
+                                msgtype: "m.text",
+                                "m.relates_to": {
+                                    "m.in_reply_to": {event_id: event_id}
+                                }
+                            });
+                            const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], qq_id, source[1]);
+                            const qq_gemini_source: [string, string] =[
+                                String(qq_id), String(qq_ev.messageId)
+                            ]
+                            await addMatrix2QQMsgMapping(gemini_ev.event_id, qq_gemini_source);
+                            await addQQ2MatrixMsgMapping(qq_gemini_source, gemini_ev.event_id);
+                        }
                         await addMatrix2QQMsgMapping(event_id, source);
                         await addQQ2MatrixMsgMapping(source, event_id);
                     } else if (
@@ -1071,6 +1099,24 @@ new Cli({
                         String(group_id),
                         source!,
                     ];
+                    const gemini_outcome = await pluginGeminiMessage(mx_id, message.sender.group.name,local_name, key, event_id, formatted);
+                    if(gemini_outcome){
+                        const gemini_ev = await superintent.sendMessage(mx_id, {
+                            body: gemini_outcome,
+                            format: "org.matrix.custom.html",
+                            formatted_body : gemini_outcome,
+                            msgtype: "m.text",
+                            "m.relates_to": {
+                                "m.in_reply_to": {event_id: event_id}
+                            }
+                        });
+                        const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], group_id, source!);
+                        const qq_gemini_source: [string, string] =[
+                            String(group_id), String(qq_ev.messageId)
+                        ]
+                        await addMatrix2QQMsgMapping(gemini_ev.event_id, qq_gemini_source);
+                        await addQQ2MatrixMsgMapping(qq_gemini_source, gemini_ev.event_id);
+                    }
                     await addMatrix2QQMsgMapping(event_id, qqsource);
                     await addQQ2MatrixMsgMapping(qqsource, event_id);
                 }
