@@ -56,7 +56,7 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
         }
         let handlerKey : HandlerKey = ":message";
         for(const command of AVAILABLE_COMMANDS){
-            if(message.startsWith(command)){
+            if(message.startsWith(`!${command}`)){
                 handlerKey = command;
                 req.update_type = "command";
                 break;
