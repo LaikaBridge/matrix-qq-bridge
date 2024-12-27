@@ -505,8 +505,8 @@ new Cli({
                             if (
                                 event.content.format == "org.matrix.custom.html"
                             ) {
-                                const s = event.content
-                                    .formatted_body as string;
+                                const s = (event.content
+                                    .formatted_body ?? event.content.body) as string;
                                 msgText = s;
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
@@ -537,8 +537,8 @@ new Cli({
                             if (
                                 event.content.format == "org.matrix.custom.html"
                             ) {
-                                const s = event.content
-                                    .formatted_body as string;
+                                const s = (event.content
+                                    .formatted_body ?? event.content.body) as string;
                                 msgText = s;
                                 msg = await throttle(async () => {
                                     return await bot.sendGroupMessage(
