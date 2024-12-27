@@ -298,10 +298,18 @@ export class MiraiSatoriAdaptor {
         return elements;
     }
     async sendQuotedGroupMessage(
-        msg: MockMessageChain[],
+        msg: MockMessageChain[] | string,
         group: number,
         quote: string,
     ): Promise<{ messageId: number }> {
+        if (typeof msg === "string") {
+            return this.sendQuotedGroupMessage([
+                {
+                    type: "Plain",
+                    text: msg
+                }
+            ], group, quote);
+        }
         const chain: MockMessageChain[] = [{
             type: "Quote",
             id: quote

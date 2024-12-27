@@ -527,7 +527,7 @@ new Cli({
                                 }
                                 msg = await throttle(async () => {
                                     return await bot.sendQuotedGroupMessage(
-                                        `${name}: ${lines.join("\n")}` as any,
+                                        `${name}: ${lines.join("\n")}`,
                                         qq_id,
                                         l4[1],
                                     );
