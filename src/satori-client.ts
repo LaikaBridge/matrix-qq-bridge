@@ -306,6 +306,8 @@ export class MiraiSatoriAdaptor {
             type: "Quote",
             id: quote
         }, ...msg];
+        console.log("sendQuotedGroupMessage", chain);
+
         const message = await this.bot.sendMessage(`${group}`, await this.translateMessageChain(
             chain), `${group}`);
         return { messageId: Number(message[0]) };
