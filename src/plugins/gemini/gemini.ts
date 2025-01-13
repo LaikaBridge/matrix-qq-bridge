@@ -125,8 +125,9 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 userName: author, 
                 content: message
             };
+            console.log(`external gemini payload: ${JSON.stringify(payload)}`);
             const result = await invokeExternal(payload);
-            console.log(`external gemini result: ${result}`)
+            console.log(`external gemini result: ${JSON.stringify(result)}`)
         })();
         const result = invoke({event: handlerKey, payload: req});
 
