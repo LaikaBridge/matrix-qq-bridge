@@ -1,7 +1,7 @@
 import YAML from "yaml"
 import { readFileSync } from "fs"
 import { AVAILABLE_COMMANDS, CtxCommandData, GeminiReq, GeminiRes, HandlerKey, Photo } from "./rpc";
-import redis from "redis";
+import { createClient as createRedisClient } from "redis";
 interface GeminiPluginConfig{
     endpoint: string;
     psk: string;
@@ -19,7 +19,7 @@ interface GeminiExternal{
 }
 const file = readFileSync("gemini-config.yaml", "utf-8");
 const config: GeminiPluginConfig = YAML.parse(file);
-const redisClient = redis.createClient({
+const redisClient = createRedisClient({
     url: config.externalRedisURL
 }).connect();
 interface ExternalTelegramMap{
@@ -58,7 +58,7 @@ export async function invoke(req: GeminiReq): Promise<GeminiRes>{
     });
     return await result.json();
 }
-export async function invokeExternal(req: GeminiExternal): Promise<void>{
+export async function invokeExternal(req: GeminiExternal): Promise<object>{
     const result = await fetch(config.externalEndpoint, {
         headers: {
             "Content-Type": "application/json",
@@ -125,7 +125,8 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 userName: author, 
                 content: message
             };
-            await invokeExternal(payload);
+            const result = await invokeExternal(payload);
+            console.log(`external gemini result: ${result}`)
         })();
         const result = invoke({event: handlerKey, payload: req});
 
