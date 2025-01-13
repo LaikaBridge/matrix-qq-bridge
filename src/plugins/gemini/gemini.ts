@@ -19,7 +19,7 @@ interface GeminiExternal{
 }
 const file = readFileSync("gemini-config.yaml", "utf-8");
 const config: GeminiPluginConfig = YAML.parse(file);
-const redisClient = await redis.createClient({
+const redisClient = redis.createClient({
     url: config.externalRedisURL
 }).connect();
 interface ExternalTelegramMap{
@@ -32,7 +32,8 @@ export async function waitForTelegramMap(event_id: string, room_id: string): Pro
     // hope that sending message to telegram is faster than that.
     let value_json : string | null = null;
     for(let i = 0; i < 60; i++){
-        value_json = await redisClient.get(key);
+        const client = await redisClient;
+        value_json = await client.get(key);
         if(value_json!==null){
             break;
         }
