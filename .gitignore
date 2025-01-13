@@ -2,3 +2,4 @@ build
 *.db
 node_modules
 .direnv
+.pre-commit-config.yaml

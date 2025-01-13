@@ -1,18 +1,67 @@
 import YAML from "yaml"
 import { readFileSync } from "fs"
 import { AVAILABLE_COMMANDS, CtxCommandData, GeminiReq, GeminiRes, HandlerKey, Photo } from "./rpc";
+import redis from "redis";
 interface GeminiPluginConfig{
     endpoint: string;
     psk: string;
+    externalEndpoint: string;
+    externalPSK: string;
+    externalRedisURL: string;
+}
+
+interface GeminiExternal{
+    groupId: string;
+    userName: string;
+    content: string;
+    messageId: number;
+    groupName: string;
 }
 const file = readFileSync("gemini-config.yaml", "utf-8");
 const config: GeminiPluginConfig = YAML.parse(file);
+const redisClient = await redis.createClient({
+    url: config.externalRedisURL
+}).connect();
+interface ExternalTelegramMap{
+    telegram_message_id: number
+    telegram_group_id: number
+}
+export async function waitForTelegramMap(event_id: string, room_id: string): Promise<ExternalTelegramMap|null>{
+    const key = `mx:${event_id}:${room_id}`;
+    // wait for 1 minute.
+    // hope that sending message to telegram is faster than that.
+    let value_json : string | null = null;
+    for(let i = 0; i < 60; i++){
+        value_json = await redisClient.get(key);
+        if(value_json!==null){
+            break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    if(value_json===null){
+        console.error(`failed to get telegram map for ${key}`);
+        return null;
+    }
+    console.log(`got telegram map for ${key}: ${value_json}`);
+    return JSON.parse(value_json);
 
+}
 export async function invoke(req: GeminiReq): Promise<GeminiRes>{
     const result = await fetch(config.endpoint, {
         headers: {
             "Content-Type": "application/json",
             "X-Custom-PSK": config.psk
+        },
+        body: JSON.stringify(req),
+        method: "POST"
+    });
+    return await result.json();
+}
+export async function invokeExternal(req: GeminiExternal): Promise<void>{
+    const result = await fetch(config.externalEndpoint, {
+        headers: {
+            "Content-Type": "application/json",
+            "X-Custom-PSK": config.externalPSK
         },
         body: JSON.stringify(req),
         method: "POST"
@@ -62,7 +111,23 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 break;
             }
         }
+        // save to external database
+        ;(async ()=>{
+            const msg_map = await waitForTelegramMap(messageId, groupId);
+            if (!msg_map){
+                return;
+            }
+            const payload: GeminiExternal = {
+                groupId: `${msg_map.telegram_group_id}`,
+                messageId: msg_map.telegram_message_id,
+                groupName: groupName,
+                userName: author, 
+                content: message
+            };
+            await invokeExternal(payload);
+        })();
         const result = invoke({event: handlerKey, payload: req});
+
         if(handlerKey === ":message"){
             return "";
         }

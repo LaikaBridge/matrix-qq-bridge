@@ -676,7 +676,7 @@ new Cli({
                             if (l4) {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        Buffer.from(imgbuf),
+                                        imgbuf,
                                         target,
                                     );
                                     return await bot.sendQuotedGroupMessage(
@@ -688,7 +688,7 @@ new Cli({
                             } else {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        Buffer.from(imgbuf),
+                                        imgbuf,
                                         target,
                                     );
                                     return await bot.sendGroupMessage(
