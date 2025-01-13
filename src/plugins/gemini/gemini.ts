@@ -8,6 +8,7 @@ interface GeminiPluginConfig{
     externalEndpoint: string;
     externalPSK: string;
     externalRedisURL: string;
+    externalWhitelistMXID: string[];
 }
 
 interface GeminiExternal{
@@ -114,12 +115,15 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
         }
         // save to external database
         ;(async ()=>{
+            if(!config.externalWhitelistMXID.includes(groupId)){
+                return;
+            }
             const msg_map = await waitForTelegramMap(messageId, groupId);
             if (!msg_map){
                 return;
             }
             const payload: GeminiExternal = {
-                groupId: `${msg_map.telegram_group_id}`,
+                groupId: `-100${msg_map.telegram_group_id}`,
                 messageId: msg_map.telegram_message_id,
                 groupName: groupName,
                 userName: author, 
