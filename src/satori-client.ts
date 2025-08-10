@@ -10,6 +10,24 @@ import Server from "@koishijs/plugin-server";
 import { Internal } from "koishi-plugin-adapter-onebot/lib/types";
 import { CQCode } from "koishi-plugin-adapter-onebot";
 type image = Buffer;
+type NapcatMsg = {
+    type: "text"
+    data: {text: string}
+} | {type: "image"}
+function napcatToSatori(napcatData: NapcatMsg[]): KE[]{
+    const results = [];
+    for (const msg of napcatData) {
+        if(msg.type==="text"){
+            results.push(KE.text(msg.data.text));
+        }else if(msg.type==="image"){
+            results.push(KE.text("[图片]"));
+        }else{
+            results.push(KE.text("[未知元素]"));
+        }
+    }
+    return results;
+
+}
 export class MiraiSatoriAdaptor {
     ctx: Context;
     ev: EventEmitter;
@@ -65,9 +83,10 @@ export class MiraiSatoriAdaptor {
             if (quote) {
                 elements.push(h("quote", { id: quote.id }));
             }
-            elements.push(...KE.parse(msg.content ?? ""));
+            elements.push(...msg.elements)
+            //elements.push(...KE.parse(msg.content ?? ""));
             let msgchain: MockMessageChain[] = [];
-
+            console.log("Message", msg, msg.elements);
             const msgchain_body = await this.untranslateMessageChain(msg.event.message?.id ?? "UNMAPPED", elements);
 
             msgchain.push(...msgchain_body);
@@ -255,7 +274,8 @@ export class MiraiSatoriAdaptor {
                     const forwardMsg = req.data.messages;
                     const nodeList: MockForward["nodeList"] = [];
                     for (const msg of forwardMsg) {
-                        const elements = CQCode.parse(msg.content);
+                        const elements = napcatToSatori(msg.message);
+                        console.log("Forwarding", msg);
                         const subChain: MockMessageChain[] = await this.untranslateMessageChain("FORWARDED", elements, true);
 
                         nodeList.push({
@@ -271,7 +291,7 @@ export class MiraiSatoriAdaptor {
 
             }
         }
-
+        console.log("chains", chains);
         return chains;
     }
     async translateMessageChain(chains: MockMessageChain[]): Promise<KE[]> {
