@@ -1,0 +1,17 @@
+
+[package]
+edition = "2024"
+name = "matrix-qq-bridge-runtime"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1.0.99"
+image = "0.25.6"
+napi = "3.0.0"
+napi-derive = "3.0.0"
+
+[build-dependencies]
+napi-build = "2"

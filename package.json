@@ -1,57 +1,22 @@
 {
-  "name": "matrix-qq-bridge",
+  "name": "@laikabridge/matrix-qq-bridge",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
   "scripts": {
+    "build:runtime": "yarn workspace @laikabridge/matrix-qq-bridge-runtime build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "run": "esbuild-dev src/index.ts"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@cordisjs/plugin-http": "^0.5.3",
-    "@cordisjs/schema": "^0.1.1",
-    "@hyrious/esbuild-dev": "^0.10.4",
-    "@koishijs/plugin-server": "^3.2.3",
-    "@satorijs/adapter-discord": "^4.5.6",
-    "@satorijs/adapter-satori": "^1.3.0",
-    "@satorijs/core": "^4.1.2",
-    "@types/node-localstorage": "^1.3.0",
-    "better-sqlite3": "^11.1.2",
-    "concat-stream": "^2.0.0",
-    "cron": "^3.3.1",
-    "esbuild": "^0.19.3",
-    "fluent-ffmpeg": "^2.1.3",
-    "html-escaper": "^3.0.3",
-    "jayson": "^4.1.2",
-    "jimp": "^0.22.12",
-    "koishi": "^4.17.9",
-    "koishi-plugin-adapter-onebot": "^6.5.8",
-    "marked": "^9.0.3",
-    "matrix-appservice-bridge": "^9.0.1",
-    "matrix-bot-sdk": "^0.6.6",
-    "node-fetch": "^3.3.2",
-    "node-html-parser": "^6.1.11",
-    "node-localstorage": "^3.0.5",
-    "node-mirai-sdk": "^0.3.6",
-    "redis": "^4.7.0",
-    "request": "^2.88.2",
-    "sharp": "^0.33.4",
-    "socks-proxy-agent": "^8.0.2",
-    "throttled-queue": "^2.1.4",
-    "typed-rpc": "^6.1.1",
-    "typescript": "^5.2.2",
-    "wasmagic": "^1.0.2",
-    "yaml": "^2.3.2"
-  },
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@napi-rs/cli": "^3.1.3",
-    "@types/better-sqlite3": "^7.6.11",
-    "@types/concat-stream": "^2.0.3",
-    "@types/fluent-ffmpeg": "^2.1.24",
-    "@types/html-escaper": "^3.0.2",
     "@types/node": "^20.6.3",
-    "esbuild-register": "^3.5.0"
-  }
+    "typescript": "^5.2.2"
+  },
+  "packageManager": "yarn@4.3.1"
 }

@@ -3,3 +3,5 @@ build
 node_modules
 .direnv
 .pre-commit-config.yaml
+target/
+.yarn

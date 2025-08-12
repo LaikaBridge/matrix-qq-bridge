@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = ["packages/runtime"]
+[profile.release]
+lto = true
+strip = "symbols"
