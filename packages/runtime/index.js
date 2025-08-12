@@ -508,5 +508,9 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
-module.exports.calcDominantColorNapi = nativeBinding.calcDominantColorNapi
+module.exports.QqBotEndpoint = nativeBinding.QqBotEndpoint
+module.exports.QQBotEndpoint = nativeBinding.QQBotEndpoint
+module.exports.calcDominantColor = nativeBinding.calcDominantColor
+module.exports.initialize = nativeBinding.initialize
 module.exports.plus100 = nativeBinding.plus100
+module.exports.testUint8Array = nativeBinding.testUint8Array

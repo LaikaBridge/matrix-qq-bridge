@@ -20,12 +20,12 @@ import Mirai from "node-mirai-sdk";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
 import { readConfig } from "./config";
-import { MiraiSatoriAdaptor } from "./satori-client";
-import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./satori-client";
+import { MiraiOnebotAdaptor } from "./onebot-client";
+import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./onebot-client";
 import sharp from "sharp"
 import ffmpeg from "fluent-ffmpeg"
 import concatStream from "concat-stream"
-import { Plain, At, Image } from "./satori-client";
+import { Plain, At, Image } from "./onebot-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
 import { mumbleBridgePlugin } from "./plugins/mumble/mumble-bridge";
 import { pluginGeminiMessage } from "./plugins/gemini/gemini";
@@ -60,7 +60,7 @@ if (config.socksProxy.enable) {
 
 const throttle = throttledQueue(1, 1000);
 
-const bot = new MiraiSatoriAdaptor({
+const bot = new MiraiOnebotAdaptor({
     host: config.mirai.host,
     // mirai-api-http-2.x
     verifyKey: config.mirai.verifyKey,
@@ -292,7 +292,7 @@ new Cli({
                         mxurl?: string,
                     ): Promise<string> {
                         if (!mxurl) return "";
-                        
+
                         /*
                         const url = intent.matrixClient.mxcToHttp(mxurl);
                         const req = await fetch(url);
@@ -305,7 +305,7 @@ new Cli({
                         prev_name_dict[event.room_id] = {};
                     const room_prev_name_dict = prev_name_dict[event.room_id];
                     if (room_prev_name_dict[user_id] === undefined) {
-                        const profile = {displayname: undefined};
+                        const profile = { displayname: undefined };
                         /*const profile = cache.getMemberProfile(
                             event.room_id,
                             event.sender,
@@ -402,28 +402,28 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.text"
                     ) {
-                        
-                        
-                        if((event.content.body as string).startsWith("!mumble")){
-                            (async ()=>{
+
+
+                        if ((event.content.body as string).startsWith("!mumble")) {
+                            (async () => {
                                 const resp = await mumbleBridgePlugin(event.content.body as string);
                                 await adminIntent.sendText(event.room_id, resp);
                             })()
                             return;
                         }
-                        if(event.content.body == "!drive"){
-                            if(isAlreadyDriving){
+                        if (event.content.body == "!drive") {
+                            if (isAlreadyDriving) {
                                 adminIntent.sendText(event.room_id, "驾驶模式已经是开启状态！");
-                            }else{
+                            } else {
                                 adminIntent.sendText(event.room_id, "已开启驾驶模式！");
                                 localStorage.setItem(driveKey, "yes");
                             }
                             return;
-                        }else if(event.content.body == "!undrive"){
-                            if(isAlreadyDriving){
+                        } else if (event.content.body == "!undrive") {
+                            if (isAlreadyDriving) {
                                 adminIntent.sendText(event.room_id, "已关闭驾驶模式！");
                                 localStorage.setItem(driveKey, "no");
-                            }else{
+                            } else {
                                 adminIntent.sendText(event.room_id, "驾驶模式已经是关闭状态！");
                             }
                             return;
@@ -434,7 +434,7 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.text"
                     ) {
-                        if(isAlreadyDriving){
+                        if (isAlreadyDriving) {
                             // driving mode. don't forward to qq.
                             return;
                         }
@@ -506,18 +506,18 @@ new Cli({
                         const room_name = (await adminIntent.getStateEvent(event.room_id, "m.room.name", "")).name;
                         const gemini_outcome = await pluginGeminiMessage(event.room_id, room_name, name_without_avatar, adminIntent.userId, event_id, msgText);
                         const superintent = bridge.getIntent(matrixAdminId);
-                        if(gemini_outcome){
+                        if (gemini_outcome) {
                             const gemini_ev = await superintent.sendMessage(event.room_id, {
                                 body: gemini_outcome,
                                 format: "org.matrix.custom.html",
-                                formatted_body : gemini_outcome,
+                                formatted_body: gemini_outcome,
                                 msgtype: "m.text",
                                 "m.relates_to": {
-                                    "m.in_reply_to": {event_id: event_id}
+                                    "m.in_reply_to": { event_id: event_id }
                                 }
                             });
                             const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], qq_id, source[1]);
-                            const qq_gemini_source: [string, string] =[
+                            const qq_gemini_source: [string, string] = [
                                 String(qq_id), String(qq_ev.messageId)
                             ]
                             await addMatrix2QQMsgMapping(gemini_ev.event_id, qq_gemini_source);
@@ -529,7 +529,7 @@ new Cli({
                         event.type == "m.room.message" &&
                         event.content.msgtype == "m.image"
                     ) {
-                        if(isAlreadyDriving){
+                        if (isAlreadyDriving) {
                             // driving mode. don't forward to qq.
                             return;
                         }
@@ -582,7 +582,7 @@ new Cli({
                         }
                         //const url = intent.down
                     } else if (event.type == "m.sticker") {
-                        if(isAlreadyDriving){
+                        if (isAlreadyDriving) {
                             // driving mode. don't forward to qq.
                             return;
                         }
@@ -644,7 +644,7 @@ new Cli({
                             console.log(err);
                         }
                     } else if (event.type == "m.room.message" && ((event?.content?.info ?? {} as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
-                        if(isAlreadyDriving){
+                        if (isAlreadyDriving) {
                             // driving mode. don't forward to qq.
                             return;
                         }
@@ -801,10 +801,10 @@ new Cli({
                     console.log("joinRoom join err", err)
                 }
                 await superintent.invite(room_id, bot);
-                try{
+                try {
                     const intent = bridge.getIntent(bot);
                     await intent.join(room_id);
-                }catch(err) {
+                } catch (err) {
                     console.log("Error while joining", err);
                 }
             } catch (err) {
@@ -813,18 +813,19 @@ new Cli({
         }
         bot.onEvent("groupRecall", async (message) => {
             await running.promise;
+            const adminIntent = bridge.getIntent(matrixAdminId);
             const group_id = message.group.id;
             const room_id = findMxByQQ(group_id);
             if (room_id === null) return;
-            const user_id = message.authorId;
+            //const user_id = message.authorId;
             const matrix_id = await getQQ2MatrixMsgMapping([
                 String(message.group.id),
                 String(message.messageId),
             ]);
             if (matrix_id !== null) {
-                const key = matrixPuppetId(user_id);
-                const intent = bridge.getIntent(key);
-                intent.matrixClient.redactEvent(
+                //const key = matrixPuppetId(user_id);
+                //const intent = bridge.getIntent(key);
+                adminIntent.matrixClient.redactEvent(
                     room_id,
                     matrix_id,
                     "撤回了一条消息",
@@ -1003,8 +1004,8 @@ new Cli({
                 console.log("Member after", member2);
                 console.log("uploaded");
                 if (msg) {
-                    if(msg.startsWith("!mumble")){
-                        (async ()=>{
+                    if (msg.startsWith("!mumble")) {
+                        (async () => {
                             const resp = await mumbleBridgePlugin(msg);
                             await bot.sendGroupMessage([Plain(resp)], message.sender.group.id);
                         })()
@@ -1032,19 +1033,19 @@ new Cli({
                         String(group_id),
                         source!,
                     ];
-                    const gemini_outcome = await pluginGeminiMessage(mx_id, message.sender.group.name,local_name, key, event_id, formatted);
-                    if(gemini_outcome){
+                    const gemini_outcome = await pluginGeminiMessage(mx_id, message.sender.group.name, local_name, key, event_id, formatted);
+                    if (gemini_outcome) {
                         const gemini_ev = await superintent.sendMessage(mx_id, {
                             body: gemini_outcome,
                             format: "org.matrix.custom.html",
-                            formatted_body : gemini_outcome,
+                            formatted_body: gemini_outcome,
                             msgtype: "m.text",
                             "m.relates_to": {
-                                "m.in_reply_to": {event_id: event_id}
+                                "m.in_reply_to": { event_id: event_id }
                             }
                         });
                         const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], group_id, source!);
-                        const qq_gemini_source: [string, string] =[
+                        const qq_gemini_source: [string, string] = [
                             String(group_id), String(qq_ev.messageId)
                         ]
                         await addMatrix2QQMsgMapping(gemini_ev.event_id, qq_gemini_source);

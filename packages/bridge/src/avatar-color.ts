@@ -1,4 +1,4 @@
-import { calcDominantColorNapi as calc_dominant_color } from "@laikabridge/matrix-qq-bridge-runtime";
+import { calcDominantColor as calc_dominant_color } from "@laikabridge/matrix-qq-bridge-runtime";
 
 const colors = {
     "🔴": rgb2lab([221, 46, 68]),

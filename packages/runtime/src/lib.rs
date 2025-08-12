@@ -1,8 +1,9 @@
 #![deny(clippy::all)]
 
-use std::{collections::HashMap, io::Cursor};
+pub mod qqbot;
 
 use napi_derive::napi;
+use std::{collections::HashMap, io::Cursor};
 
 #[napi]
 pub fn plus_100(input: u32) -> u32 {
@@ -11,12 +12,18 @@ pub fn plus_100(input: u32) -> u32 {
 
 use image::ImageReader;
 
+static INITIALIZE_ONCE: std::sync::Once = std::sync::Once::new();
 #[napi]
-pub fn calc_dominant_color_napi(img: &[u8]) -> napi::Result<Vec<u8>> {
-  calc_dominant_color(img)
-    .map_err(|err| napi::Error::new(napi::Status::GenericFailure, err.to_string()))
+pub fn initialize() -> bool {
+  let mut initialized = false;
+  INITIALIZE_ONCE.call_once(|| {
+    initialized = true;
+    tracing_subscriber::fmt::init();
+  });
+  initialized
 }
 
+#[napi]
 pub fn calc_dominant_color(img: &[u8]) -> anyhow::Result<Vec<u8>> {
   let data = ImageReader::new(Cursor::new(img))
     .with_guessed_format()?
