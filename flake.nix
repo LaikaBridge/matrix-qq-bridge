@@ -26,6 +26,8 @@
         wasm-bindgen-cli
         wasm-pack
         just
+        yarn
+        nixfmt
       ];
     };
   };

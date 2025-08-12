@@ -30,11 +30,11 @@ export const SUPPORTED_MIME_LIST = Object.keys(SUPPORTED_MIMES) as Mime[];
 export type Mime = keyof typeof SUPPORTED_MIMES;
 export interface MimedImage {
     mime: Mime;
-    data: Buffer;
+    data: Uint8Array;
 }
 function createPipe() {
-    let res: (arg0: Buffer) => void, rej!: (x: any)=>void;
-    const prom: Promise<Buffer> = new Promise((resolve, reject) => {
+    let res: (arg0: Uint8Array) => void, rej!: (x: any)=>void;
+    const prom: Promise<Uint8Array> = new Promise((resolve, reject) => {
         res = resolve;
         rej = reject;
     });
@@ -42,7 +42,7 @@ function createPipe() {
     return { stream: cs, promise: prom, rej: rej };
 }
 const MAGIC = WASMagic.create();
-export async function guessMime(buffer: Buffer){
+export async function guessMime(buffer: Uint8Array){
     const mime = (await MAGIC).detect(buffer);
     if(!mime) throw new Error("Unknown mime type");
     const mimeInfo = SUPPORTED_MIMES[mime as Mime];
@@ -86,8 +86,8 @@ export abstract class Target{
     abstract preferredMime(animated: boolean): Mime;
     abstract compatibleMimes(): Mime[];
 
-    async convert(image: MimedImage | Buffer): Promise<MimedImage>{
-        if(image instanceof Buffer){
+    async convert(image: MimedImage | Uint8Array): Promise<MimedImage>{
+        if(image instanceof Uint8Array){
             const mimedImage = await guessMime(image);
             return this.convert(mimedImage);
         }
@@ -120,9 +120,9 @@ export class MXTarget extends Target{
     }
 }
 
-export async function convertToQQ(buffer: Buffer){
+export async function convertToQQ(buffer: Uint8Array){
     return (new QQTarget()).convert(buffer);
 }
-export async function convertToMX(buffer: Buffer){
+export async function convertToMX(buffer: Uint8Array){
     return (new MXTarget()).convert(buffer);
 }

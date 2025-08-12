@@ -56,7 +56,7 @@ function cie94(labA: number[], labB: number[]) {
 export function calcAvatarEmoji(buffer: Uint8Array): string {
     let rgb16;
     try {
-        rgb16 = calc_dominant_color(buffer) as Array<number>;
+        rgb16 = calc_dominant_color(buffer);
     } catch (e) {
         console.error(e);
         rgb16 = [0, 0, 0]

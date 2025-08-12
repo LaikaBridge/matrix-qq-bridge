@@ -30,6 +30,7 @@ import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } f
 import { mumbleBridgePlugin } from "./plugins/mumble/mumble-bridge";
 import { pluginGeminiMessage } from "./plugins/gemini/gemini";
 import { calcAvatarEmoji } from "./avatar-color";
+import { fetchMXC } from "./mxc-fetch";
 
 const config = readConfig();
 
@@ -247,7 +248,7 @@ new Cli({
                     const user_id = event.sender;
                     let name = user_id;
                     let avatar = "";
-                    const intent = bridge.getIntent(matrixAdminId);
+                    const adminIntent = bridge.getIntent(matrixAdminId);
                     // if (prev_profile_dict[user_id] === undefined) {
                     //     try {
                     //         const prof = await intent.getProfileInfo(
@@ -291,9 +292,13 @@ new Cli({
                         mxurl?: string,
                     ): Promise<string> {
                         if (!mxurl) return "";
+                        
+                        /*
                         const url = intent.matrixClient.mxcToHttp(mxurl);
                         const req = await fetch(url);
                         const buffer = new Uint8Array(await req.arrayBuffer());
+                        */
+                        const buffer = await fetchMXC(adminIntent, mxurl);
                         return calcAvatarEmoji(buffer);
                     }
                     if (!prev_name_dict[event.room_id])
@@ -306,7 +311,7 @@ new Cli({
                             event.sender,
                         );*/
                         if (profile.displayname === undefined) {
-                            const state = await intent.getStateEvent(
+                            const state = await adminIntent.getStateEvent(
                                 room_id,
                                 "m.room.member",
                                 user_id,
@@ -402,24 +407,24 @@ new Cli({
                         if((event.content.body as string).startsWith("!mumble")){
                             (async ()=>{
                                 const resp = await mumbleBridgePlugin(event.content.body as string);
-                                await intent.sendText(event.room_id, resp);
+                                await adminIntent.sendText(event.room_id, resp);
                             })()
                             return;
                         }
                         if(event.content.body == "!drive"){
                             if(isAlreadyDriving){
-                                intent.sendText(event.room_id, "驾驶模式已经是开启状态！");
+                                adminIntent.sendText(event.room_id, "驾驶模式已经是开启状态！");
                             }else{
-                                intent.sendText(event.room_id, "已开启驾驶模式！");
+                                adminIntent.sendText(event.room_id, "已开启驾驶模式！");
                                 localStorage.setItem(driveKey, "yes");
                             }
                             return;
                         }else if(event.content.body == "!undrive"){
                             if(isAlreadyDriving){
-                                intent.sendText(event.room_id, "已关闭驾驶模式！");
+                                adminIntent.sendText(event.room_id, "已关闭驾驶模式！");
                                 localStorage.setItem(driveKey, "no");
                             }else{
-                                intent.sendText(event.room_id, "驾驶模式已经是关闭状态！");
+                                adminIntent.sendText(event.room_id, "驾驶模式已经是关闭状态！");
                             }
                             return;
                         }
@@ -498,8 +503,8 @@ new Cli({
                         ];
                         const event_id = event.event_id;
 
-                        const room_name = (await intent.getStateEvent(event.room_id, "m.room.name", "")).name;
-                        const gemini_outcome = await pluginGeminiMessage(event.room_id, room_name, name_without_avatar, intent.userId, event_id, msgText);
+                        const room_name = (await adminIntent.getStateEvent(event.room_id, "m.room.name", "")).name;
+                        const gemini_outcome = await pluginGeminiMessage(event.room_id, room_name, name_without_avatar, adminIntent.userId, event_id, msgText);
                         const superintent = bridge.getIntent(matrixAdminId);
                         if(gemini_outcome){
                             const gemini_ev = await superintent.sendMessage(event.room_id, {
@@ -529,11 +534,7 @@ new Cli({
                             return;
                         }
                         try {
-                            const url = intent.matrixClient.mxcToHttp(
-                                event.content.url as string,
-                            );
-                            const req = await fetch(url);
-                            const buffer = await req.arrayBuffer();
+                            const buffer = await fetchMXC(adminIntent, event.content.url as string);
                             let msg;
                             const l4 = await parseQuote();
                             const target: GroupTarget = {
@@ -592,9 +593,7 @@ new Cli({
                          * 并且没有fi.mau.telegram.animated_sticker字段
                          */
                         try {
-                            const url = intent.matrixClient.mxcToHttp(event.content.url as string);
-                            const req = await fetch(url);
-                            const buf = await req.arrayBuffer();
+                            const buf = await fetchMXC(adminIntent, event.content.url as string);
                             const srcMime = event.content.mimetype as string;
                             const converted = await convertToQQ(Buffer.from(buf));
                             const imgbuf = converted.data;
@@ -612,7 +611,7 @@ new Cli({
                             if (l4) {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        imgbuf,
+                                        Buffer.from(imgbuf),
                                         target,
                                     );
                                     return await bot.sendQuotedGroupMessage(
@@ -624,7 +623,7 @@ new Cli({
                             } else {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        imgbuf,
+                                        Buffer.from(imgbuf),
                                         target,
                                     );
                                     return await bot.sendGroupMessage(
@@ -652,11 +651,9 @@ new Cli({
                         /**
                          * 为啥有的animated sticker转成gif有的转成mp4???
                          */
-                        const url = intent.matrixClient.mxcToHttp(event.content.url as string);
-                        const req = await fetch(url);
-                        const buf = await req.arrayBuffer();
+                        const buf = await fetchMXC(adminIntent, event.content.url as string);
                         const srcMime = event.content.mimetype as string;
-                        const converted = await convertToQQ(Buffer.from(buf));
+                        const converted = await convertToQQ(buf);
                         const imgbuf = converted.data;
                         const mime = converted.mime;
                         try {
@@ -673,7 +670,7 @@ new Cli({
                             if (l4) {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        imgbuf,
+                                        Buffer.from(imgbuf),
                                         target,
                                     );
                                     return await bot.sendQuotedGroupMessage(
@@ -685,7 +682,7 @@ new Cli({
                             } else {
                                 msg = await throttle(async () => {
                                     const image = await bot.uploadImage(
-                                        imgbuf,
+                                        Buffer.from(imgbuf),
                                         target,
                                     );
                                     return await bot.sendGroupMessage(
@@ -1069,7 +1066,7 @@ new Cli({
                         const buffer = Buffer.from(await img.arrayBuffer());
                         const converted = await convertToMX(buffer);
                         const content = await intent.uploadContent(
-                            converted.data
+                            Buffer.from(converted.data)
                         );
                         const mimeInfo = SUPPORTED_MIMES[converted.mime];
                         const { event_id } = await intent.sendMessage(mx_id, {

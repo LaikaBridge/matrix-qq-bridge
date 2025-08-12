@@ -60,7 +60,7 @@ export class MiraiSatoriAdaptor {
 
         ctx.inject(["http"], (ctx) => {
             console.log("Loading Onebot")
-            ctx.plugin(onebot.OneBotBot, {
+            ctx.plugin(onebot.OneBotBot as any, {
                 selfId: `${config.qq}`,
                 protocol: "ws",
                 endpoint: config.host,
@@ -83,7 +83,7 @@ export class MiraiSatoriAdaptor {
             if (quote) {
                 elements.push(h("quote", { id: quote.id }));
             }
-            elements.push(...msg.elements)
+            elements.push(...(msg.elements ?? []))
             //elements.push(...KE.parse(msg.content ?? ""));
             let msgchain: MockMessageChain[] = [];
             console.log("Message", msg, msg.elements);
