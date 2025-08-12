@@ -4,6 +4,8 @@ pub mod qqbot;
 
 use napi_derive::napi;
 use std::{collections::HashMap, io::Cursor};
+use time::macros::format_description;
+use tracing_subscriber::{fmt::time::UtcTime, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[napi]
 pub fn plus_100(input: u32) -> u32 {
@@ -18,7 +20,16 @@ pub fn initialize() -> bool {
   let mut initialized = false;
   INITIALIZE_ONCE.call_once(|| {
     initialized = true;
-    tracing_subscriber::fmt::init();
+    let time_format = format_description!("[unix_timestamp precision:millisecond]");
+    let timer = UtcTime::new(time_format);
+    tracing_subscriber::registry()
+      .with(
+        tracing_subscriber::fmt::layer()
+          .json()
+          .with_timer(timer)
+          .flatten_event(true),
+      )
+      .init();
   });
   initialized
 }

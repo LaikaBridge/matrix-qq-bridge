@@ -1,5 +1,6 @@
 import { readFileSync } from "fs"
 import YAML from "yaml"
+import { CONFIG_PATH } from "./workdir"
 interface MiraiConfig {
     host: string
     verifyKey: string
@@ -46,7 +47,7 @@ interface Config {
 }
 
 export function readConfig(): Config {
-    const file = readFileSync("config.yaml", "utf-8");
+    const file = readFileSync(CONFIG_PATH, "utf-8");
     const config = YAML.parse(file);
     return config;
 }

@@ -16,15 +16,11 @@ import type { MatrixProfileInfo } from "matrix-bot-sdk";
 import fetch from "node-fetch";
 import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
 import { LocalStorage } from "./storage";
-import Mirai from "node-mirai-sdk";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
 import { readConfig } from "./config";
 import { MiraiOnebotAdaptor } from "./onebot-client";
 import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./onebot-client";
-import sharp from "sharp"
-import ffmpeg from "fluent-ffmpeg"
-import concatStream from "concat-stream"
 import { Plain, At, Image } from "./onebot-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
 import { mumbleBridgePlugin } from "./plugins/mumble/mumble-bridge";
@@ -32,9 +28,12 @@ import { pluginGeminiMessage } from "./plugins/gemini/gemini";
 import { calcAvatarEmoji } from "./avatar-color";
 import { fetchMXC } from "./mxc-fetch";
 
+import { logger } from "./logger";
+import { DATABASE_PATH, workdir_relative } from "./workdir";
+
 const config = readConfig();
 
-const localStorage = new LocalStorage("./extra-storage-sqlite.db");
+const localStorage = new LocalStorage(DATABASE_PATH);
 
 const BOT_UPDATE_VERSION = 1;
 
@@ -71,17 +70,17 @@ const bot = new MiraiOnebotAdaptor({
 
 // auth 认证(*)
 bot.onSignal("authed", () => {
-    console.log(`Authed with session key ${bot.sessionKey}`);
+    logger.debug(`Authed with session key ${bot.sessionKey}`);
     bot.verify();
 });
 
 // session 校验回调
 bot.onSignal("verified", async () => {
-    console.log(`Verified with session key ${bot.sessionKey}`);
+    logger.debug(`Verified with session key ${bot.sessionKey}`);
 
     // 获取好友列表，需要等待 session 校验之后 (verified) 才能调用 SDK 中的主动接口
     const friendList = await bot.getFriendList();
-    console.log(`There are ${friendList.length} friends in bot`);
+    logger.debug(`There are ${friendList.length} friends in bot`);
 });
 
 
@@ -189,14 +188,14 @@ const INTENT_MEMBERSHIP_STORE = (() => {
     };
 })();
 */
-//console.log(INTENT_MEMBERSHIP_STORE.getMembership);
+//logger.debug(INTENT_MEMBERSHIP_STORE.getMembership);
 const launch_date = new Date();
 const matrixAdminId = `@${config.matrix.namePrefix}_admin:${config.matrix.domain}`;
 const drivingGroups = new Set<string>();
 const matrixPuppetId = (id: string | number) =>
     `@${config.matrix.namePrefix}_qq_${id}:${config.matrix.domain}`;
 new Cli({
-    registrationPath: config.matrix.registration.path,
+    registrationPath: workdir_relative(config.matrix.registration.path),
     generateRegistration: (reg, callback) => {
         const regConfig = config.matrix.registration;
         reg.setId(AppServiceRegistration.generateToken());
@@ -217,7 +216,7 @@ new Cli({
         const bridge = new Bridge({
             homeserverUrl: config.matrix.homeserver,
             domain: config.matrix.domain,
-            registration: config.matrix.registration.path,
+            registration: workdir_relative(config.matrix.registration.path),
             /*
             membershipCache: cache,
             intentOptions: {
@@ -237,11 +236,11 @@ new Cli({
                 onEvent: async (request, context) => {
                     const event = request.getData();
                     if (event.origin_server_ts < launch_date.getTime()) {
-                        console.warn("Ignoring event ", event.event_id);
+                        logger.warn({ event_id: event.event_id }, "Ignoring event.",);
                         return;
                     }
 
-                    console.log(event);
+                    logger.debug(event);
                     const room_id = event.room_id;
                     const qq_id = findQQByMx(room_id);
                     if (qq_id === null) return;
@@ -285,7 +284,7 @@ new Cli({
                     //             avatar,
                     //         };
                     //     } catch (ex) {
-                    //         console.log(ex);
+                    //         logger.debug(ex);
                     //     }
                     // }
                     async function getAvatarByMxUrl(
@@ -578,7 +577,7 @@ new Cli({
                             await addMatrix2QQMsgMapping(event_id, source);
                             await addQQ2MatrixMsgMapping(source, event_id);
                         } catch (err) {
-                            console.log(err);
+                            logger.debug(err);
                         }
                         //const url = intent.down
                     } else if (event.type == "m.sticker") {
@@ -641,7 +640,7 @@ new Cli({
                             await addMatrix2QQMsgMapping(event_id, source);
                             await addQQ2MatrixMsgMapping(source, event_id);
                         } catch (err) {
-                            console.log(err);
+                            logger.debug(err);
                         }
                     } else if (event.type == "m.room.message" && ((event?.content?.info ?? {} as any)["fi.mau.telegram.animated_sticker"] as boolean) == true) {
                         if (isAlreadyDriving) {
@@ -700,7 +699,7 @@ new Cli({
                             await addMatrix2QQMsgMapping(event_id, source);
                             await addQQ2MatrixMsgMapping(source, event_id);
                         } catch (error) {
-                            console.log(error);
+                            logger.debug(error);
                         }
                     } else if (event.type == "m.room.redaction") {
                         // don't care about drive mode.
@@ -709,10 +708,10 @@ new Cli({
                                 event.redacts as string,
                             );
                             if (!ev) return;
-                            console.log(ev);
+                            logger.debug(ev);
                             await bot.recall(ev[1], ev[0]);
                         } catch (err) {
-                            console.log(err);
+                            logger.debug(err);
                         }
                     }
                 },
@@ -721,14 +720,14 @@ new Cli({
 
         async function getAvatarUrl(qq: number, intent: Intent) {
             const key = `qq_avatar_${qq}`;
-            console.log("t1");
+            logger.debug("t1");
             while (localStorage.getItem(key) === null) {
                 try {
-                    console.log("t2");
+                    logger.debug("t2");
                     const url = `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=140`;
                     const img = await fetch(url, { agent });
                     const buffer = await img.arrayBuffer();
-                    console.log("fetched");
+                    logger.debug("fetched");
                     const content = await intent.uploadContent(
                         Buffer.from(buffer),
                         {
@@ -738,11 +737,11 @@ new Cli({
                     );
 
                     localStorage.setItem(key, content);
-                    console.log("t3");
+                    logger.debug("t3");
                 } catch (err) {
-                    console.log(
-                        `Error fetching avatar for ${qq}, retrying`,
+                    logger.error(
                         err,
+                        `Error fetching avatar for ${qq}, retrying`,
                     );
                 }
             }
@@ -756,7 +755,7 @@ new Cli({
             eventId: string,
             msgId: [group: string, id: string],
         ) {
-            console.log(`Mapping ${eventId} to ${qqmsgStr(msgId)}`);
+            logger.debug(`Mapping ${eventId} to ${qqmsgStr(msgId)}`);
             localStorage.setItem(
                 `msgmapping_matrix_to_qq_${eventId}`,
                 qqmsgStr(msgId),
@@ -786,29 +785,29 @@ new Cli({
             );
         }
         async function joinRoom(bot: string, room_id: string) {
-            console.log("joinRoom", bot, room_id);
+            logger.debug({ bot, room_id }, "joinRoom");
             try {
                 const superintent = bridge.getIntent(matrixAdminId);
-                console.log("joinRoom getting super intent")
+                logger.debug("joinRoom getting super intent")
                 try {
                     await superintent;
                 } catch (err) {
-                    console.log("joinRoom superintent err", err)
+                    logger.error(err, "joinRoom superintent err")
                 }
                 try {
                     await superintent.join(room_id);
                 } catch (err) {
-                    console.log("joinRoom join err", err)
+                    logger.error(err, "joinRoom join err")
                 }
                 await superintent.invite(room_id, bot);
                 try {
                     const intent = bridge.getIntent(bot);
                     await intent.join(room_id);
                 } catch (err) {
-                    console.log("Error while joining", err);
+                    logger.error(err, "Error while joining");
                 }
             } catch (err) {
-                console.log("joinRoom err", err);
+                logger.error(err, "joinRoom err");
             }
         }
         bot.onEvent("groupRecall", async (message) => {
@@ -844,7 +843,7 @@ new Cli({
                 let msg = "";
                 let formatted = "";
                 const images: string[] = [];
-                console.log(messageChain);
+                logger.debug(messageChain);
                 let quoted: string | null = null;
                 let source: string | null = null;
                 for (const chain of messageChain) {
@@ -946,13 +945,13 @@ new Cli({
                     } else if (chain.type == "Source") {
                         source = String(chain.id!);
                     } else if (chain.type == "Image") {
-                        console.log(chain);
+                        logger.debug(chain);
                         images.push(chain.url!);
                         //msg+='[图图]';
                     }
                 }
 
-                console.log(message.sender);
+                logger.debug(message.sender);
                 const key = matrixPuppetId(g.id);
                 const intent = bridge.getIntent(key);
                 await joinRoom(key, mx_id);
@@ -965,29 +964,29 @@ new Cli({
                     undefined,
                     false,
                 );
-                console.log("User", user_profile);
-                console.log("Group", group_profile);
+                logger.debug(user_profile, "User");
+                logger.debug(group_profile, "Group");
                 const a = `${group_profile.nickname} (QQ)`;
                 const b = (await getAvatarUrl(g.id, intent)) ?? undefined;
                 if (user_profile.displayname !== a) {
-                    console.log("Reset displayname globally: ignored.");
+                    logger.debug("Reset displayname globally: ignored.");
                     //await intent.setDisplayName(a);
                 }
                 if (user_profile.avatar_url !== b) {
                     if (b !== undefined) await intent.setAvatarUrl(b);
                 }
-                console.log("DEBUG", (intent as any).opts);
+                logger.debug((intent as any).opts, "DEBUG");
                 const member = await superintent.getStateEvent(
                     mx_id,
                     "m.room.member",
                     key,
                     true,
                 );
-                console.log("Member", member);
+                logger.debug(member, "Member");
                 const local_name = `${g.memberName} (QQ)`;
                 if (member.displayname !== local_name) {
                     member.displayname = local_name;
-                    console.log("Reset displayname locally.");
+                    logger.debug("Reset displayname locally.");
                     await intent.sendStateEvent(
                         mx_id,
                         "m.room.member",
@@ -1001,8 +1000,8 @@ new Cli({
                     key,
                     true,
                 );
-                console.log("Member after", member2);
-                console.log("uploaded");
+                logger.debug(member2, "Member after");
+                logger.debug("uploaded");
                 if (msg) {
                     if (msg.startsWith("!mumble")) {
                         (async () => {
@@ -1101,10 +1100,12 @@ new Cli({
          */
         await bot.listen("group"); // 相当于 bot.listen('friend', 'group', 'temp')
 
-        console.log(
-            "Matrix-side listening on %s:%s",
-            config.matrix.listenIP,
-            config.matrix.listenPort,
+        logger.debug(
+            {
+                port: config.matrix.listenPort,
+                ip: config.matrix.listenIP,
+            },
+            "Matrix-side listening",
         );
         bridge
             .run(config.matrix.listenPort, undefined, config.matrix.listenIP)

@@ -1,16 +1,7 @@
 import { EventEmitter } from "node:events";
-//import satori from "@satorijs/adapter-satori";
-//import discord from "@satorijs/adapter-discord"
-//import schema from "@cordisjs/schema"
-//import http from "@cordisjs/plugin-http"
-//import { Context, Element as KE, ForkScope, Logger, Bot, h } from "koishi";
-import type { GroupTarget, MessageChain } from "node-mirai-sdk";
-//import * as onebot from "koishi-plugin-adapter-onebot";
-//import Server from "@koishijs/plugin-server";
-//import { Internal } from "koishi-plugin-adapter-onebot/lib/types";
-//import { CQCode } from "koishi-plugin-adapter-onebot";
 
 import { initialize, Mockv2MessageChain, QqBotEndpoint } from "@laikabridge/matrix-qq-bridge-runtime";
+import { logger } from "./logger";
 
 type image = Buffer;
 
@@ -111,7 +102,7 @@ export class MiraiOnebotAdaptor {
                 }
                 this.emit("message", msg2);
             } else if (ev.type === "GroupMessageDeleted") {
-                console.log(ev);
+                logger.debug(ev);
                 this.emit("groupRecall", {
                     group: {
                         id: Number(ev.groupId),
@@ -156,7 +147,7 @@ export class MiraiOnebotAdaptor {
             });
             if (this.readyFlag) break;
         }
-        console.log("Onebot ready.")
+        logger.info("Onebot ready.")
     }
     onMessage(
         f: (message: {
@@ -222,7 +213,7 @@ export class MiraiOnebotAdaptor {
             type: "Quote",
             id: quote
         }, ...convertOutbound(msg)];
-        console.log("sendQuotedGroupMessage", chain);
+        logger.info(chain, "sendQuotedGroupMessage");
 
         const message = await this.bot.sendGroupMessage(`${group}`, chain);
         return { messageId: Number(message.messageId) };
@@ -237,7 +228,7 @@ export class MiraiOnebotAdaptor {
         const chain = convertOutbound(msg);
         //console.log("Sending", chain)
         const message = await this.bot.sendGroupMessage(`${group}`, chain);
-        console.log(message);
+        logger.debug(message);
         //console.log("Sent")
         return { messageId: Number(message.messageId) };
     }

@@ -1,0 +1,14 @@
+{
+    "colorize": true,
+    "crlf": false,
+    "errorLikeObjectKeys": "err,error",
+    "errorProps": "",
+    "levelFirst": false,
+    "hideObject": false,
+    "minimumLevel": "trace",
+    "singleLine": false,
+    "timestampKey": "timestamp",
+    "messageKey": "message",
+    "translateTime": "SYS:standard",
+    "ignore": "pid,hostname,target,timestamp_str"
+}

@@ -2,7 +2,9 @@ import YAML from "yaml"
 import { readFileSync } from "fs"
 import { AVAILABLE_COMMANDS, CtxCommandData, GeminiReq, GeminiRes, HandlerKey, Photo } from "./rpc";
 import { createClient as createRedisClient } from "redis";
-interface GeminiPluginConfig{
+import { logger } from "../../logger";
+import { GEMINI_CONFIG_PATH } from "../../workdir";
+interface GeminiPluginConfig {
     endpoint: string;
     psk: string;
     externalEndpoint: string;
@@ -11,44 +13,44 @@ interface GeminiPluginConfig{
     externalWhitelistMXID: string[];
 }
 
-interface GeminiExternal{
+interface GeminiExternal {
     groupId: string;
     userName: string;
     content: string;
     messageId: number;
     groupName: string;
 }
-const file = readFileSync("gemini-config.yaml", "utf-8");
+const file = readFileSync(GEMINI_CONFIG_PATH, "utf-8");
 const config: GeminiPluginConfig = YAML.parse(file);
 const redisClient = createRedisClient({
     url: config.externalRedisURL
 }).connect();
-interface ExternalTelegramMap{
+interface ExternalTelegramMap {
     telegram_message_id: number
     telegram_group_id: number
 }
-export async function waitForTelegramMap(event_id: string, room_id: string): Promise<ExternalTelegramMap|null>{
+export async function waitForTelegramMap(event_id: string, room_id: string): Promise<ExternalTelegramMap | null> {
     const key = `mx:${event_id}:${room_id}`;
     // wait for 1 minute.
     // hope that sending message to telegram is faster than that.
-    let value_json : string | null = null;
-    for(let i = 0; i < 60; i++){
+    let value_json: string | null = null;
+    for (let i = 0; i < 60; i++) {
         const client = await redisClient;
         value_json = await client.get(key);
-        if(value_json!==null){
+        if (value_json !== null) {
             break;
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    if(value_json===null){
-        console.error(`failed to get telegram map for ${key}`);
+    if (value_json === null) {
+        logger.error(`failed to get telegram map for ${key}`);
         return null;
     }
-    console.log(`got telegram map for ${key}: ${value_json}`);
+    logger.info(`got telegram map for ${key}: ${value_json}`);
     return JSON.parse(value_json);
 
 }
-export async function invoke(req: GeminiReq): Promise<GeminiRes>{
+export async function invoke(req: GeminiReq): Promise<GeminiRes> {
     const result = await fetch(config.endpoint, {
         headers: {
             "Content-Type": "application/json",
@@ -59,7 +61,7 @@ export async function invoke(req: GeminiReq): Promise<GeminiRes>{
     });
     return await result.json();
 }
-export async function invokeExternal(req: GeminiExternal): Promise<object>{
+export async function invokeExternal(req: GeminiExternal): Promise<object> {
     const result = await fetch(config.externalEndpoint, {
         headers: {
             "Content-Type": "application/json",
@@ -70,22 +72,22 @@ export async function invokeExternal(req: GeminiExternal): Promise<object>{
     });
     return await result.json();
 }
-export function getMatrixImageUrl(homeserver: string, imageId: string): string{
+export function getMatrixImageUrl(homeserver: string, imageId: string): string {
     return `https://${homeserver}/_matrix/media/v3/download/${homeserver}/${imageId}`
 }
-export function getMatrixChatUrl(roomId: string, eventId: string): string{
+export function getMatrixChatUrl(roomId: string, eventId: string): string {
     // https://matrix.to/#/!beLznZg6kQwtzH831I:matrix-bridge.gjz010.com/$MIfoWK62yKGsZxzC4mzq4RBdQEkYeew4BNE7doAbrUQ
     return `https://matrix.to/#/${roomId}/${eventId}`
 }
-export async function pluginGeminiMessage(groupId: string, groupName: string, author: string, authorId: string, messageId: string, message: string | Photo): Promise<string | null>{
+export async function pluginGeminiMessage(groupId: string, groupName: string, author: string, authorId: string, messageId: string, message: string | Photo): Promise<string | null> {
     let res: GeminiRes;
-    if(typeof message === "string"){
+    if (typeof message === "string") {
         const req: CtxCommandData = {
             update_type: "message",
             update: {
                 message: {
                     photo: [],
-                    sender_chat: {title: groupName},
+                    sender_chat: { title: groupName },
                     from: {
                         id: authorId,
                         username: author,
@@ -105,47 +107,47 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 api: "APIKEY"
             }
         }
-        let handlerKey : HandlerKey = ":message";
-        for(const command of AVAILABLE_COMMANDS){
-            if(message.startsWith(`!${command}`)){
+        let handlerKey: HandlerKey = ":message";
+        for (const command of AVAILABLE_COMMANDS) {
+            if (message.startsWith(`!${command}`)) {
                 handlerKey = command;
                 req.update_type = "command";
                 break;
             }
         }
         // save to external database
-        ;(async ()=>{
-            if(!config.externalWhitelistMXID.includes(groupId)){
+        ; (async () => {
+            if (!config.externalWhitelistMXID.includes(groupId)) {
                 return;
             }
             const msg_map = await waitForTelegramMap(messageId, groupId);
-            if (!msg_map){
+            if (!msg_map) {
                 return;
             }
             const payload: GeminiExternal = {
                 groupId: `-100${msg_map.telegram_group_id}`,
                 messageId: msg_map.telegram_message_id,
                 groupName: groupName,
-                userName: author, 
+                userName: author,
                 content: message
             };
-            console.log(`external gemini payload: ${JSON.stringify(payload)}`);
+            logger.debug(payload, `external gemini payload`);
             const result = await invokeExternal(payload);
-            console.log(`external gemini result: ${JSON.stringify(result)}`)
+            logger.debug(result, `external gemini result`)
         })();
-        const result = invoke({event: handlerKey, payload: req});
+        const result = invoke({ event: handlerKey, payload: req });
 
-        if(handlerKey === ":message"){
+        if (handlerKey === ":message") {
             return "";
         }
         res = await result;
-    }else{
+    } else {
         const req: CtxCommandData = {
             update_type: "photo",
             update: {
                 message: {
                     photo: [message],
-                    sender_chat: {title: groupName},
+                    sender_chat: { title: groupName },
                     from: {
                         id: authorId,
                         username: author,
@@ -165,16 +167,16 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 api: "APIKEY"
             }
         };
-        invoke({event: ":message", payload: req});
+        invoke({ event: ":message", payload: req });
         return null;
     }
     const lines: string[] = [];
-    for(const line of res.events){
-        if(line.type === "text"){
+    for (const line of res.events) {
+        if (line.type === "text") {
             lines.push(line.text);
-        }else{
+        } else {
             lines.push("查询结果：");
-            for(const r of line.payload){
+            for (const r of line.payload) {
                 lines.push(`${r.userName}: ${r.content} ${r.messageId == null ? "" : `[link](${getMatrixChatUrl(groupId, messageId)})`}`);
             }
         }

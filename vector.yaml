@@ -1,0 +1,41 @@
+sources:
+  in:
+    type: "stdin"
+
+transforms:
+  json:
+    type: "remap"
+    inputs:
+      - "in"
+    source: |
+      . = parse_json!(string!(.message))
+      if .time != null{
+        .timestamp = .time
+        del(.time)
+      }
+      timestamp_int, err = to_int(.timestamp)
+      if err == null {
+       .timestamp = timestamp_int
+      }
+      .timestamp_str = from_unix_timestamp!(.timestamp, unit: "milliseconds")
+      if .msg != null{
+        .message = .msg
+        del(.msg)
+      }
+
+
+
+sinks:
+  pretty_console:
+    inputs:
+      - "json"
+    type: "console"
+    encoding:
+      codec: "json"
+  file:
+    inputs:
+      - "json"
+    type: "file"
+    encoding:
+      codec: "json"
+    path: "${LAIKA_ROOT:-.}/logs/app-%Y-%m-%d.log"

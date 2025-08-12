@@ -1,4 +1,5 @@
 import { calcDominantColor as calc_dominant_color } from "@laikabridge/matrix-qq-bridge-runtime";
+import { logger } from "./logger";
 
 const colors = {
     "🔴": rgb2lab([221, 46, 68]),
@@ -58,7 +59,7 @@ export function calcAvatarEmoji(buffer: Uint8Array): string {
     try {
         rgb16 = calc_dominant_color(buffer);
     } catch (e) {
-        console.error(e);
+        logger.error(e);
         rgb16 = [0, 0, 0]
     }
     const lab = rgb2lab(rgb16.map((x) => (x / 15) * 255));

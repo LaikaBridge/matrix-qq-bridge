@@ -2,14 +2,15 @@ import concatStream from "concat-stream";
 import ffmpeg from "fluent-ffmpeg";
 import { Readable } from "node:stream";
 import { WASMagic } from "wasmagic";
+import { logger } from "./logger";
 type FFMpegCodec = [format: string, codec: string];
-class MimeInfo{
+class MimeInfo {
     mime: Mime;
     format: string;
     isAnimated: boolean;
     matrixMsgType: string;
     ffmpegCodec: FFMpegCodec;
-    constructor(mime: string, format: string, isAnimated: boolean, ffmpegCodec: FFMpegCodec, matrixMsgType = "m.image"){
+    constructor(mime: string, format: string, isAnimated: boolean, ffmpegCodec: FFMpegCodec, matrixMsgType = "m.image") {
         this.mime = mime as Mime;
         this.format = format;
         this.isAnimated = isAnimated;
@@ -33,7 +34,7 @@ export interface MimedImage {
     data: Uint8Array;
 }
 function createPipe() {
-    let res: (arg0: Uint8Array) => void, rej!: (x: any)=>void;
+    let res: (arg0: Uint8Array) => void, rej!: (x: any) => void;
     const prom: Promise<Uint8Array> = new Promise((resolve, reject) => {
         res = resolve;
         rej = reject;
@@ -42,15 +43,15 @@ function createPipe() {
     return { stream: cs, promise: prom, rej: rej };
 }
 const MAGIC = WASMagic.create();
-export async function guessMime(buffer: Uint8Array){
+export async function guessMime(buffer: Uint8Array) {
     const mime = (await MAGIC).detect(buffer);
-    if(!mime) throw new Error("Unknown mime type");
+    if (!mime) throw new Error("Unknown mime type");
     const mimeInfo = SUPPORTED_MIMES[mime as Mime];
-    if(!mimeInfo) throw new Error("Unsupported mime type");
+    if (!mimeInfo) throw new Error("Unsupported mime type");
     return { mime: mimeInfo.mime, data: buffer };
 }
-export function withResolvers<T, E>(){
-    let resolve!: (a: T)=>void, reject!: (a: E)=>void;
+export function withResolvers<T, E>() {
+    let resolve!: (a: T) => void, reject!: (a: E) => void;
     const promise = new Promise<T>((res, rej) => {
         resolve = res;
         reject = rej;
@@ -59,7 +60,7 @@ export function withResolvers<T, E>(){
     return { promise, resolve, reject };
 
 }
-export async function convertTo(image: MimedImage, target: Mime): Promise<MimedImage>{
+export async function convertTo(image: MimedImage, target: Mime): Promise<MimedImage> {
     const mimeInfo = SUPPORTED_MIMES[target];
     const srcMimeInfo = SUPPORTED_MIMES[image.mime];
     const stream = createPipe();
@@ -69,12 +70,11 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
         .format(mimeInfo.ffmpegCodec[0])
         .outputOptions(["-c", mimeInfo.ffmpegCodec[1]])
         .on("error", (err) => {
-            console.log("ffmpeg conversion failed");
-            console.error(err);
+            logger.error(err, "ffmpeg conversion failed");
             ffmpegFin.reject(err);
         })
         .on("end", () => {
-            console.log("ffmpeg conversion successful");
+            logger.debug("ffmpeg conversion successful");
             ffmpegFin.resolve(0);
         })
         .pipe(stream.stream, { end: true });
@@ -82,47 +82,47 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
     const outputBuffer = await stream.promise;
     return { mime: target, data: outputBuffer };
 }
-export abstract class Target{
+export abstract class Target {
     abstract preferredMime(animated: boolean): Mime;
     abstract compatibleMimes(): Mime[];
 
-    async convert(image: MimedImage | Uint8Array): Promise<MimedImage>{
-        if(image instanceof Uint8Array){
+    async convert(image: MimedImage | Uint8Array): Promise<MimedImage> {
+        if (image instanceof Uint8Array) {
             const mimedImage = await guessMime(image);
             return this.convert(mimedImage);
         }
         const mime = image.mime;
-        console.log("Received mime: ", mime, " compatible: ", this.compatibleMimes());
-        if(this.compatibleMimes().indexOf(mime)!=-1){
+        logger.debug({ mime, compatible: this.compatibleMimes() }, "Received mime.");
+        if (this.compatibleMimes().indexOf(mime) != -1) {
             return image;
         }
-        console.log("Converting to preferred mime ", this.preferredMime(SUPPORTED_MIMES[mime].isAnimated));
+        logger.debug("Converting to preferred mime " + this.preferredMime(SUPPORTED_MIMES[mime].isAnimated));
         const targetMime = this.preferredMime(SUPPORTED_MIMES[mime].isAnimated);
         return convertTo(image, targetMime);
     }
 
 }
 
-export class QQTarget extends Target{
-    preferredMime(animated: boolean): Mime{
-        return animated? "image/gif" : "image/png";
+export class QQTarget extends Target {
+    preferredMime(animated: boolean): Mime {
+        return animated ? "image/gif" : "image/png";
     }
-    compatibleMimes(): Mime[]{
+    compatibleMimes(): Mime[] {
         return ["image/gif", "image/png", "image/jpeg"];
     }
 }
-export class MXTarget extends Target{
-    preferredMime(animated: boolean): Mime{
-        return animated? "image/gif" : "image/png";
+export class MXTarget extends Target {
+    preferredMime(animated: boolean): Mime {
+        return animated ? "image/gif" : "image/png";
     }
-    compatibleMimes(): Mime[]{
+    compatibleMimes(): Mime[] {
         return ["video/webm", "image/png", "image/jpeg", "video/mp4", "image/gif"];
     }
 }
 
-export async function convertToQQ(buffer: Uint8Array){
+export async function convertToQQ(buffer: Uint8Array) {
     return (new QQTarget()).convert(buffer);
 }
-export async function convertToMX(buffer: Uint8Array){
+export async function convertToMX(buffer: Uint8Array) {
     return (new MXTarget()).convert(buffer);
 }

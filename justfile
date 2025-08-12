@@ -1,4 +1,4 @@
 all:
     just --list
-build-wasm:
-    cd wasm && wasm-pack build -m no-install -t nodejs
+start_dumb:
+    export LAIKA_ROOT=./build;  yarn exec esbuild-dev ./packages/bridge/src/bin/dumb.ts | vector --config ./vector.yaml | yarn exec pino-pretty

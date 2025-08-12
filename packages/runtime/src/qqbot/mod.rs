@@ -101,7 +101,7 @@ impl QQBotEndpoint {
 
   #[instrument]
   async fn handle_onebot_event(&self, ev: onebot_v11::Event) -> anyhow::Result<()> {
-    trace!("OneBot event: {ev:?}");
+    debug!(event =? ev, "OneBot event");
     match ev {
       onebot_v11::Event::Message(message) => match &message {
         onebot_v11::event::message::Message::GroupMessage(m) => 'handle: {
