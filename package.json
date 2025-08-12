@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "build:runtime": "yarn workspace @laikabridge/matrix-qq-bridge-runtime build",
+    "run:dumb": "yarn workspace @laikabridge/matrix-qq-bridge-bridge run:dumb",
     "test": "echo \"Error: no test specified\" && exit 1",
     "run": "esbuild-dev src/index.ts"
   },

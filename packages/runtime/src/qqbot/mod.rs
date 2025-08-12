@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, bail};
+use async_broadcast::InactiveReceiver;
 use hostport::HostPort;
 use itertools::Itertools;
 use napi::{
@@ -44,7 +45,7 @@ pub mod event;
 pub struct QQBotEndpoint {
   config: QQBotConfig,
   started: Mutex<Option<oneshot::Receiver<()>>>,
-  terminated: Mutex<Option<oneshot::Sender<()>>>,
+  terminated: Mutex<Option<(oneshot::Sender<()>, InactiveReceiver<event::Event>)>>,
   client: OnceCell<Arc<WsConnect>>,
   event_tx: async_broadcast::Sender<event::Event>,
 }
@@ -59,13 +60,13 @@ impl Debug for QQBotEndpoint {
 impl QQBotEndpoint {
   pub fn new(config: QQBotConfig) -> anyhow::Result<Arc<Self>> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
-
+    let (event_tx, event_rx) = async_broadcast::broadcast(1024);
     let instance = Self {
       config,
       started: Mutex::new(Some(shutdown_rx)),
-      terminated: Mutex::new(Some(shutdown_tx)),
+      terminated: Mutex::new(Some((shutdown_tx, event_rx.deactivate()))),
       client: OnceCell::new(),
-      event_tx: async_broadcast::broadcast(1024).0,
+      event_tx,
     };
 
     Ok(Arc::new(instance))
@@ -158,7 +159,7 @@ impl QQBotEndpoint {
   }
 
   pub async fn terminate(&self) -> anyhow::Result<()> {
-    let Some(shutdown_tx) = self.terminated.lock().await.take() else {
+    let Some((shutdown_tx, _)) = self.terminated.lock().await.take() else {
       bail!("already terminated!");
     };
     let core::result::Result::Ok(()) = shutdown_tx.send(()) else {

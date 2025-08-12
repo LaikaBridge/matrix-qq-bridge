@@ -1,8 +1,10 @@
 use std::{any, fmt::format, sync::Arc};
 
+use crate::qqbot::{bytes::ByteBuffer, client_proxy::ClientProxy, event};
 use anyhow::{Context, bail};
 use futures_util::future::{join_all, try_join_all};
 use itertools::Itertools;
+use napi::bindgen_prelude::*;
 use napi::{bindgen_prelude::FromNapiValue, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use onebot_v11::{
@@ -12,8 +14,7 @@ use onebot_v11::{
   event::message::Message,
   message::segment::ReplyData,
 };
-
-use crate::qqbot::{bytes::ByteBuffer, client_proxy::ClientProxy, event};
+use tracing::info;
 
 use super::QQBotEndpoint as Inner;
 
@@ -64,7 +65,7 @@ impl QQBotEndpoint {
     self.inner.terminate().await
   }
   #[napi]
-  pub fn register_callback(
+  pub async fn register_callback(
     &self,
     callback: ThreadsafeFunction<event::Event>,
   ) -> anyhow::Result<()> {
@@ -72,6 +73,7 @@ impl QQBotEndpoint {
   }
   #[napi]
   pub async fn get_friend_list(&self) -> anyhow::Result<Vec<(String, String)>> {
+    info!("get friend list");
     let client = self.client()?;
     let resp = client.get_friend_list(GetFriendList {}).await?;
     Ok(

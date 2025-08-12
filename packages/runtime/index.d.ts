@@ -4,7 +4,7 @@ export declare class QqBotEndpoint {
   constructor(config: QqBotConfig)
   start(): Promise<void>
   terminate(): Promise<void>
-  registerCallback(callback: ((err: Error | null, arg: Event) => any)): void
+  registerCallback(callback: ((err: Error | null, arg: Event) => any)): Promise<void>
   getFriendList(): Promise<Array<[string, string]>>
   getGroupMember(groupId: string, userId: string): Promise<GroupMemberInfo>
   deleteMessage(messageId: string): Promise<void>
