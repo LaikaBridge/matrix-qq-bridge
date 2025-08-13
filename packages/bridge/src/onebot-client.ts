@@ -11,6 +11,8 @@ function convertInbound(msg: Mockv2MessageChain[]): MockMessageChain[] {
     for (const m of msg) {
         if (m.type === "Quote" || m.type === "Plain" || m.type === "At" || m.type === "Source") {
             messages.push(m);
+        } else if (m.type === "ImageInbound") {
+            messages.push({ type: "Image", url: m.url });
         } else if (m.type === "ImageOutbound") {
             messages.push(Plain("[错误: 内部错误]"));
         } else if (m.type === "Forward") {

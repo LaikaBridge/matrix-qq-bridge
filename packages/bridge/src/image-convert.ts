@@ -66,7 +66,7 @@ export async function convertTo(image: MimedImage, target: Mime): Promise<MimedI
     const stream = createPipe();
     const ffmpegFin = withResolvers();
     ffmpeg()
-        .addInput(Readable.from(image.data))
+        .addInput(Readable.from(Buffer.from(image.data)))
         .format(mimeInfo.ffmpegCodec[0])
         .outputOptions(["-c", mimeInfo.ffmpegCodec[1]])
         .on("error", (err) => {
@@ -96,9 +96,11 @@ export abstract class Target {
         if (this.compatibleMimes().indexOf(mime) != -1) {
             return image;
         }
-        logger.debug("Converting to preferred mime " + this.preferredMime(SUPPORTED_MIMES[mime].isAnimated));
         const targetMime = this.preferredMime(SUPPORTED_MIMES[mime].isAnimated);
-        return convertTo(image, targetMime);
+        logger.debug({image: image.data.constructor.name, targetMime}, "Converting to preferred mime " + this.preferredMime(SUPPORTED_MIMES[mime].isAnimated));
+        const xs = await convertTo(image, targetMime);
+        logger.debug("Converted!")
+        return xs
     }
 
 }

@@ -31,6 +31,12 @@ import { fetchMXC } from "./mxc-fetch";
 import { logger } from "./logger";
 import { DATABASE_PATH, workdir_relative } from "./workdir";
 
+
+process.on('unhandledRejection', (reason, p) => {
+  logger.error({p, reason}, 'Unhandled Rejection');
+  // application specific logging, throwing an error, or other logic here
+});
+
 const config = readConfig();
 
 const localStorage = new LocalStorage(DATABASE_PATH);
@@ -799,7 +805,7 @@ new Cli({
                 } catch (err) {
                     logger.error(err, "joinRoom join err")
                 }
-                await superintent.invite(room_id, bot);
+                try {await superintent.invite(room_id, bot);} catch(err) {logger.error(err, "joinRoom invite err")}
                 try {
                     const intent = bridge.getIntent(bot);
                     await intent.join(room_id);
@@ -1053,7 +1059,7 @@ new Cli({
                     await addMatrix2QQMsgMapping(event_id, qqsource);
                     await addQQ2MatrixMsgMapping(qqsource, event_id);
                 }
-
+                logger.info({images}, "Images");
                 for (const url of images) {
                     const sending_prompt = intent.sendTyping(mx_id, true);
                     const qqsource: [string, string] = [
@@ -1062,6 +1068,7 @@ new Cli({
                     ];
 
                     try {
+                        logger.info({url}, "Fetching Image");
                         const img = await fetch(url, { agent });
                         const buffer = Buffer.from(await img.arrayBuffer());
                         const converted = await convertToMX(buffer);
