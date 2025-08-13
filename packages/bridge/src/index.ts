@@ -12,7 +12,7 @@ import {
     StateLookupEvent,
     type UserMembership,
 } from "matrix-appservice-bridge";
-import type { MatrixProfileInfo } from "matrix-bot-sdk";
+import type { MatrixProfileInfo } from "@vector-im/matrix-bot-sdk";
 import fetch from "node-fetch";
 import { HTMLElement, type Node, TextNode, parse } from "node-html-parser";
 import { LocalStorage } from "./storage";

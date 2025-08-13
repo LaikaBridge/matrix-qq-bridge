@@ -5,7 +5,9 @@ pub mod qqbot;
 use napi_derive::napi;
 use std::{collections::HashMap, io::Cursor};
 use time::macros::format_description;
-use tracing_subscriber::{fmt::time::UtcTime, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{
+  EnvFilter, Layer, fmt::time::UtcTime, layer::SubscriberExt, util::SubscriberInitExt,
+};
 
 #[napi]
 pub fn plus_100(input: u32) -> u32 {
@@ -27,7 +29,8 @@ pub fn initialize() -> bool {
         tracing_subscriber::fmt::layer()
           .json()
           .with_timer(timer)
-          .flatten_event(true),
+          .flatten_event(true)
+          .with_filter(EnvFilter::from_default_env()),
       )
       .init();
   });
