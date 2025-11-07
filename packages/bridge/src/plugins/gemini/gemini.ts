@@ -103,6 +103,10 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                     message_id: messageId,
                 }
             },
+            options: {
+                pro: false,
+                with_context: true,
+            },
             bot: {
                 api: "APIKEY"
             }
@@ -114,6 +118,18 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 req.update_type = "command";
                 break;
             }
+        }
+        if (message.startsWith("!askpro")) {
+            handlerKey = "ask";
+            req.update_type = "command";
+            req.options.pro = true;
+            req.options.with_context = true;
+        }
+        if (message.startsWith("!pro")) {
+            handlerKey = "ask";
+            req.update_type = "command";
+            req.options.pro = true;
+            req.options.with_context = false;
         }
         // save to external database
         ; (async () => {
@@ -162,6 +178,10 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                     text: "[图片]",
                     message_id: messageId,
                 }
+            },
+            options: {
+                pro: false,
+                with_context: true,
             },
             bot: {
                 api: "APIKEY"

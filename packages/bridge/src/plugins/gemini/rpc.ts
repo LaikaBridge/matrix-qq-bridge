@@ -1,26 +1,26 @@
 /// A "stored" message
-export type R =  {
-	groupId: string;
-	userName: string;
-	content: string;
-	messageId: string;
-	timeStamp: number;
+export type R = {
+    groupId: string;
+    userName: string;
+    content: string;
+    messageId: string;
+    timeStamp: number;
 }
 export type Reply = {
     type: "text", text: string
 } | {
     type: "query", payload: R[]
 }
-export type PhotoId = {url: string}
+export type PhotoId = { url: string }
 export type Photo = {
     file_id: PhotoId
 }
-export interface CtxCommandData{
+export interface CtxCommandData {
     update_type: "message" | "photo" | "command"
     update: {
-        message:{
+        message: {
             photo: Photo[];
-            sender_chat:{
+            sender_chat: {
                 title: string
             }
             from: {
@@ -37,19 +37,23 @@ export interface CtxCommandData{
             text: string;
             message_id: string;
         }
+    },
+    options: {
+        with_context: boolean,
+        pro: boolean
     }
     bot: {
         api: "APIKEY"
     }
 }
 export const AVAILABLE_COMMANDS = ["status", "query", "ask", "summary"] as const;
-export type HandlerKey = typeof AVAILABLE_COMMANDS[number] | 
-    ":message"|
+export type HandlerKey = typeof AVAILABLE_COMMANDS[number] |
+    ":message" |
     ":schedule"
 
-export interface GeminiReq{
+export interface GeminiReq {
     event: HandlerKey, payload: CtxCommandData
 }
-export interface GeminiRes{
+export interface GeminiRes {
     events: Reply[]
 }
