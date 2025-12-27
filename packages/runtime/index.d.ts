@@ -8,11 +8,17 @@ export declare class QqBotEndpoint {
   getFriendList(): Promise<Array<[string, string]>>
   getGroupMember(groupId: string, userId: string): Promise<GroupMemberInfo>
   deleteMessage(messageId: string): Promise<void>
+  downloadImage(imageId: string): Promise<Buffer>
   sendGroupMessage(groupId: string, message: Array<Mockv2MessageChain>): Promise<SendGroupMsgResp>
 }
 export type QQBotEndpoint = QqBotEndpoint
 
 export declare function calcDominantColor(img: Uint8Array): Array<number>
+
+export interface DownloadImageEndpoint {
+  baseurl: string
+  authorizationHeader: string
+}
 
 export type Event =
   | { type: 'Connected', name: string, qq: string }
@@ -44,7 +50,7 @@ export type Mockv2MessageChain =
   | { type: 'Plain', text: string }
   | { type: 'At', target: number, display?: string }
   | { type: 'Source', id: string }
-  | { type: 'ImageInbound', url: string, imageId?: string }
+  | { type: 'ImageInbound', url: string, imageId: string }
   | { type: 'ImageOutbound', buffer: Uint8Array, mime: string }
   | { type: 'Unknown', placeholder: string }
   | { type: 'Error', message: string }
@@ -54,6 +60,7 @@ export declare function plus100(input: number): number
 export interface QqBotConfig {
   addr: string
   accessToken: string
+  downloadImage: DownloadImageEndpoint
 }
 
 export interface SendGroupMsgResp {

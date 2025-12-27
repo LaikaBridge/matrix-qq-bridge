@@ -72,7 +72,7 @@ const bot = new MiraiOnebotAdaptor({
     qq: config.mirai.qq,
     enableWebsocket: false,
     wsOnly: false,
-});
+}, config.downloadImage);
 
 // auth 认证(*)
 bot.onSignal("authed", () => {
@@ -848,7 +848,7 @@ new Cli({
                 const { messageChain } = message;
                 let msg = "";
                 let formatted = "";
-                const images: string[] = [];
+                const imageIds: string[] = [];
                 logger.debug(messageChain);
                 let quoted: string | null = null;
                 let source: string | null = null;
@@ -952,7 +952,7 @@ new Cli({
                         source = String(chain.id!);
                     } else if (chain.type == "Image") {
                         logger.debug(chain);
-                        images.push(chain.url!);
+                        imageIds.push(chain.imageId!);
                         //msg+='[图图]';
                     }
                 }
@@ -1059,8 +1059,8 @@ new Cli({
                     await addMatrix2QQMsgMapping(event_id, qqsource);
                     await addQQ2MatrixMsgMapping(qqsource, event_id);
                 }
-                logger.info({ images }, "Images");
-                for (const url of images) {
+                logger.info({ imageIds }, "Images");
+                for (const imageId of imageIds) {
                     const sending_prompt = intent.sendTyping(mx_id, true);
                     const qqsource: [string, string] = [
                         String(group_id),
@@ -1068,9 +1068,11 @@ new Cli({
                     ];
 
                     try {
-                        logger.info({ url }, "Fetching Image");
-                        const img = await fetch(url, { agent });
-                        const buffer = Buffer.from(await img.arrayBuffer());
+                        logger.info({ imageId }, "Fetching Image");
+                        // create tempfile
+                        const imageBuffer = await bot.bot.downloadImage(imageId);
+                        //const img = await fetch(url, { agent });
+                        const buffer = imageBuffer;
                         const converted = await convertToMX(buffer);
                         const content = await intent.uploadContent(
                             Buffer.from(converted.data)
@@ -1089,7 +1091,7 @@ new Cli({
                     } catch (err) {
                         const { event_id } = await intent.sendText(
                             mx_id,
-                            "Failed to send image: " + url,
+                            "Failed to send image: " + imageId,
                         );
                         await addMatrix2QQMsgMapping(event_id, qqsource);
                     }

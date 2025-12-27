@@ -12,7 +12,7 @@ function convertInbound(msg: Mockv2MessageChain[]): MockMessageChain[] {
         if (m.type === "Quote" || m.type === "Plain" || m.type === "At" || m.type === "Source") {
             messages.push(m);
         } else if (m.type === "ImageInbound") {
-            messages.push({ type: "Image", url: m.url });
+            messages.push({ type: "Image", imageId: m.imageId });
         } else if (m.type === "ImageOutbound") {
             messages.push(Plain("[错误: 内部错误]"));
         } else if (m.type === "Forward") {
@@ -70,6 +70,9 @@ export class MiraiOnebotAdaptor {
         qq: number;
         enableWebsocket: boolean;
         wsOnly: boolean;
+    }, downloadConfig: {
+        baseurl: string,
+        authorizationHeader: string,
     }) {
 
         this.ev = new EventEmitter();
@@ -77,6 +80,7 @@ export class MiraiOnebotAdaptor {
         this.bot = new QqBotEndpoint({
             addr: config.host,
             accessToken: config.verifyKey,
+            downloadImage: downloadConfig
         });
 
         this.bot.registerCallback(async (_, ev) => {
@@ -282,7 +286,6 @@ export type MockSource = {
 }
 export type MockImage = {
     type: "Image"
-    url?: string
     imageId?: string
     buffer?: Buffer
     mime?: string

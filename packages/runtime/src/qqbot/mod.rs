@@ -37,6 +37,8 @@ use crate::qqbot::{
 pub struct QQBotConfig {
   addr: String,
   access_token: SecretString,
+  download_image_baseurl: String,
+  download_image_authorization_header: SecretString,
 }
 
 pub mod client_proxy;

@@ -1,12 +1,15 @@
+use std::path::Path;
 use std::{any, fmt::format, sync::Arc};
 
 use crate::qqbot::{bytes::ByteBuffer, client_proxy::ClientProxy, event};
 use anyhow::{Context, bail};
+use futures_util::TryStreamExt;
 use futures_util::future::{join_all, try_join_all};
 use itertools::Itertools;
-use napi::bindgen_prelude::*;
 use napi::{bindgen_prelude::FromNapiValue, threadsafe_function::ThreadsafeFunction};
+use napi::{bindgen_prelude::*, tokio};
 use napi_derive::napi;
+use onebot_v11::api::payload::GetImage;
 use onebot_v11::{
   MessageSegment,
   api::payload::{DeleteMsg, GetForwardMsg, GetFriendList, GetGroupMemberInfo, SendMsg},
@@ -14,15 +17,25 @@ use onebot_v11::{
   event::message::Message,
   message::segment::ReplyData,
 };
+use reqwest::Url;
+use secrecy::ExposeSecret;
+use tokio_util::io::StreamReader;
 use tracing::info;
 
 use super::QQBotEndpoint as Inner;
 
 #[napi(object)]
 #[derive(Debug, Clone)]
+pub struct DownloadImageEndpoint {
+  pub baseurl: String,
+  pub authorization_header: String,
+}
+#[napi(object)]
+#[derive(Debug, Clone)]
 pub struct QQBotConfig {
   pub addr: String,
   pub access_token: String,
+  pub download_image: DownloadImageEndpoint,
 }
 
 impl From<QQBotConfig> for super::QQBotConfig {
@@ -30,6 +43,8 @@ impl From<QQBotConfig> for super::QQBotConfig {
     super::QQBotConfig {
       addr: value.addr,
       access_token: value.access_token.into(),
+      download_image_baseurl: value.download_image.baseurl,
+      download_image_authorization_header: value.download_image.authorization_header.into(),
     }
   }
 }
@@ -117,6 +132,40 @@ impl QQBotEndpoint {
     Ok(())
   }
 
+  #[napi]
+  pub async fn download_image(
+    &self,
+    image_id: String, /*, target_path: String*/
+  ) -> anyhow::Result<Buffer> {
+    let file = self
+      .client()?
+      .get_image(GetImage { file: image_id })
+      .await?;
+    // download.
+    //let mut dest = tokio::fs::File::create(Path::new(&target_path)).await?;
+    let mut dest = vec![];
+    let baseurl = Url::parse(&format!("{}/", &self.inner.config.download_image_baseurl))?;
+    let file_url = baseurl.join(&file.file)?;
+    let authorization = self
+      .inner
+      .config
+      .download_image_authorization_header
+      .expose_secret();
+    let client = reqwest::Client::new();
+    let resp = client
+      .get(file_url)
+      .header(reqwest::header::AUTHORIZATION, authorization)
+      .send()
+      .await?
+      .error_for_status()?;
+    let mut stream = StreamReader::new(
+      resp
+        .bytes_stream()
+        .map_err(|e| futures_util::io::Error::new(futures_util::io::ErrorKind::Other, e)),
+    );
+    tokio::io::copy(&mut stream, &mut dest).await?;
+    Ok(dest.into())
+  }
   #[napi]
   pub async fn send_group_message(
     &self,
@@ -242,7 +291,7 @@ pub async fn message_segment_to_msgchain(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("No Inbound URL"))?
         .clone(),
-      image_id: None,
+      image_id: data.file.clone(),
     },
     MessageSegment::Reply { data } => Mockv2MessageChain::Quote {
       id: data.id.to_owned(),
@@ -321,7 +370,7 @@ pub enum Mockv2MessageChain {
   },
   ImageInbound {
     url: String,
-    image_id: Option<String>,
+    image_id: String,
   },
   ImageOutbound {
     #[napi(ts_type = "Uint8Array")]

@@ -7,7 +7,10 @@ async function main() {
         verifyKey: "mirai_test",
         qq: 12345,
         enableWebsocket: true,
-        wsOnly: true
+        wsOnly: true,
+    }, {
+        baseurl: "",
+        authorizationHeader: "",
     });
     onebot.onEvent("groupRecall", (x) => logger.info(x));
     onebot.onMessage((x) => logger.info(x));

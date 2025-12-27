@@ -42,7 +42,11 @@ interface Config {
     matrix: MatrixConfig
     bridgedGroups: GroupBridgeRule[]
     socksProxy: SocksProxyConfig
-    puppetCustomization: PuppetCustomization
+    puppetCustomization: PuppetCustomization,
+    downloadImage: {
+        baseurl: string,
+        authorizationHeader: string,
+    }
     //    rembgService: RembgConfig
 }
 
