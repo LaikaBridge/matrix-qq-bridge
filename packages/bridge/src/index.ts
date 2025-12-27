@@ -32,10 +32,10 @@ import { logger } from "./logger";
 import { DATABASE_PATH, workdir_relative } from "./workdir";
 
 
-process.on('unhandledRejection', (reason, p) => {
-    logger.error({ p, reason }, 'Unhandled Rejection');
-    // application specific logging, throwing an error, or other logic here
-});
+//process.on('unhandledRejection', (reason, p) => {
+//    logger.error({ p, reason }, 'Unhandled Rejection');
+//    // application specific logging, throwing an error, or other logic here
+//});
 
 const config = readConfig();
 
@@ -1139,6 +1139,6 @@ new Cli({
                     );
                 }
                 running.resolve(undefined);
-            });
+            }).catch(e=>{throw e;});
     },
 }).run();
