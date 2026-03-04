@@ -106,6 +106,7 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
             options: {
                 pro: false,
                 with_context: true,
+                with_search: false
             },
             bot: {
                 api: "APIKEY"
@@ -119,26 +120,26 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
                 break;
             }
         }
-        req.options.with_search=false;
+        req.options.with_search = false;
         if (message.startsWith("!askpro")) {
             handlerKey = "ask";
             req.update_type = "command";
             req.options.pro = true;
             req.options.with_context = true;
-        }else 
-        if (message.startsWith("!prosearch")) {
-            handlerKey = "ask";
-            req.update_type = "command";
-            req.options.pro = true;
-            req.options.with_context = false;
-            req.options.with_search=true;
-        }else 
-        if (message.startsWith("!pro")) {
-            handlerKey = "ask";
-            req.update_type = "command";
-            req.options.pro = true;
-            req.options.with_context = false;
-        }
+        } else
+            if (message.startsWith("!prosearch")) {
+                handlerKey = "ask";
+                req.update_type = "command";
+                req.options.pro = true;
+                req.options.with_context = false;
+                req.options.with_search = true;
+            } else
+                if (message.startsWith("!pro")) {
+                    handlerKey = "ask";
+                    req.update_type = "command";
+                    req.options.pro = true;
+                    req.options.with_context = false;
+                }
         // save to external database
         ; (async () => {
             if (!config.externalWhitelistMXID.includes(groupId)) {
@@ -190,6 +191,7 @@ export async function pluginGeminiMessage(groupId: string, groupName: string, au
             options: {
                 pro: false,
                 with_context: true,
+                with_search: false
             },
             bot: {
                 api: "APIKEY"

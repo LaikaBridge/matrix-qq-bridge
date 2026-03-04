@@ -19,7 +19,7 @@ import { LocalStorage } from "./storage";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import throttledQueue from "throttled-queue";
 import { readConfig } from "./config";
-import { MiraiOnebotAdaptor } from "./onebot-client";
+import { MiraiOnebotAdaptor, MockForward } from "./onebot-client";
 import { MockMessageChain as MessageChain, MockGroupTarget as GroupTarget, MockGroupSender as GroupSender } from "./onebot-client";
 import { Plain, At, Image } from "./onebot-client";
 import { SUPPORTED_MIMES, convertToMX, convertToQQ, guessMime, withResolvers } from "./image-convert";
@@ -521,7 +521,20 @@ new Cli({
                                     "m.in_reply_to": { event_id: event_id }
                                 }
                             });
-                            const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], qq_id, source[1]);
+                            const forwardMessageChain: MockForward = {
+                                type: "Forward",
+                                nodeList: [
+                                    {
+                                        senderName: "小火龙",
+                                        messageChain: [Plain(`来自${name_without_avatar}的提问：${msgText}`)]
+                                    },
+                                    {
+                                        senderName: "小火龙",
+                                        messageChain: [Plain(`${gemini_outcome}`)]
+                                    }]
+                            };
+                            const qq_ev = await bot.sendGroupMessage([forwardMessageChain], qq_id);
+                            //const qq_ev = await bot.sendQuotedGroupMessage([forwardMessageChain], qq_id, source[1]);
                             const qq_gemini_source: [string, string] = [
                                 String(qq_id), String(qq_ev.messageId)
                             ]
@@ -1139,6 +1152,6 @@ new Cli({
                     );
                 }
                 running.resolve(undefined);
-            }).catch(e=>{throw e;});
+            }).catch(e => { throw e; });
     },
 }).run();

@@ -10,6 +10,7 @@ use napi::{bindgen_prelude::FromNapiValue, threadsafe_function::ThreadsafeFuncti
 use napi::{bindgen_prelude::*, tokio};
 use napi_derive::napi;
 use onebot_v11::api::payload::GetImage;
+use onebot_v11::message::segment::{CustomNodeData, NodeData};
 use onebot_v11::{
   MessageSegment,
   api::payload::{DeleteMsg, GetForwardMsg, GetFriendList, GetGroupMemberInfo, SendMsg},
@@ -173,6 +174,14 @@ impl QQBotEndpoint {
     message: Vec<Mockv2MessageChain>,
   ) -> anyhow::Result<SendGroupMsgResp> {
     let segments = msgchain_to_segments(&message)?;
+    // 检查segments要么全node，要么全不是node
+    let all_nodes = segments
+      .iter()
+      .map(|x| matches!(x, MessageSegment::CustomNode { .. }))
+      .all_equal();
+    if !all_nodes {
+      bail!("转发节点有一半是Node，另一半不是！");
+    }
     let resp = self
       .client()?
       .send_msg(SendMsg {
@@ -234,6 +243,21 @@ pub fn msgchain_to_segments(
         ));
       }
       Mockv2MessageChain::Source { id } => {}
+      Mockv2MessageChain::Forward { node_list } => {
+        // TODO: 确认是唯一的
+        for node_candidate in node_list.iter() {
+          let content = msgchain_to_segments(&node_candidate.message_chain)?;
+          let user_id = 10000; // todo
+          let node = MessageSegment::CustomNode {
+            data: CustomNodeData {
+              name: Some(node_candidate.sender_name.to_owned()),
+              uin: Some(user_id),
+              content,
+            },
+          };
+          segments.push(node);
+        }
+      }
       _ => {
         bail!("Unsupported message type {:?}", msg)
       }
@@ -249,16 +273,19 @@ pub async fn message_to_msgchain(
   let unnamed = "未知用户".to_owned();
   let (name, id, body) = match message {
     onebot_v11::event::message::Message::PrivateMessage(private_message) => (
-      private_message.sender.nickname.as_ref().unwrap_or(&unnamed),
+      [&private_message.sender.nickname]
+        .into_iter()
+        .find_map(|opt| opt.as_ref().filter(|s| !s.is_empty()))
+        .unwrap_or(&unnamed),
       private_message.message_id,
       &private_message.message,
     ),
     onebot_v11::event::message::Message::GroupMessage(group_message) => (
-      group_message
-        .sender
-        .card
-        .as_ref()
-        .unwrap_or_else(|| group_message.sender.nickname.as_ref().unwrap_or(&unnamed)),
+      // 正确的逻辑：card ?? nickname ?? unnamed
+      [&group_message.sender.card, &group_message.sender.nickname]
+        .into_iter()
+        .find_map(|opt| opt.as_ref().filter(|s| !s.is_empty()))
+        .unwrap_or(&unnamed),
       group_message.message_id,
       &group_message.message,
     ),

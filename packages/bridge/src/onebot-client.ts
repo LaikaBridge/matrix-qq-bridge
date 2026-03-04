@@ -42,8 +42,16 @@ function convertOutbound(msg: MockMessageChain[]): Mockv2MessageChain[] {
         } else if (m.type === "Image") {
             messages.push({ type: "ImageOutbound", mime: m.mime ?? "", buffer: m.buffer ?? Buffer.from([]) })
         } else if (m.type === "Forward") {
-            messages.push({ type: "Plain", text: `[错误: 不支持转发]` });
-        } else if (m.type === "ForwardOnebot") {
+            messages.push({
+                type: "Forward", nodeList: m.nodeList.map(x => {
+                    return {
+                        senderName: x.senderName,
+                        messageChain: convertOutbound(x.messageChain)
+                    }
+                })
+            });
+        }
+        else if (m.type === "ForwardOnebot") {
             messages.push({ type: "Plain", text: `[错误: 不支持转发]` });
         }
     }
