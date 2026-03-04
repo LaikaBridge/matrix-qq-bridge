@@ -40,6 +40,7 @@ export interface CtxCommandData {
     },
     options: {
         with_context: boolean,
+        with_search: boolean,
         pro: boolean
     }
     bot: {
