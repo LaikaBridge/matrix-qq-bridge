@@ -1062,7 +1062,20 @@ new Cli({
                                 "m.in_reply_to": { event_id: event_id }
                             }
                         });
-                        const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], group_id, source!);
+                        const forwardMessageChain: MockForward = {
+                            type: "Forward",
+                            nodeList: [
+                                {
+                                    senderName: "小火龙",
+                                    messageChain: [Plain(`来自${local_name}的提问：${formatted}`)]
+                                },
+                                {
+                                    senderName: "小火龙",
+                                    messageChain: [Plain(`${gemini_outcome}`)]
+                                }]
+                        };
+                        const qq_ev = await bot.sendGroupMessage([forwardMessageChain], group_id);
+                        //const qq_ev = await bot.sendQuotedGroupMessage([Plain(`${gemini_outcome}`)], group_id, source!);
                         const qq_gemini_source: [string, string] = [
                             String(group_id), String(qq_ev.messageId)
                         ]
